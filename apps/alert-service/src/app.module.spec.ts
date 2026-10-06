@@ -1,12 +1,17 @@
 import { Test } from '@nestjs/testing';
 import { HealthController } from '@app/common';
+import { DataSource } from 'typeorm';
+import { fakeDataSource } from '../../../test/support/http-test-app';
 import { AppModule } from './app.module';
 
 describe('AppModule (alert-service)', () => {
   it('exposes the health check of alert-service', async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(DataSource)
+      .useValue(fakeDataSource)
+      .compile();
 
     const result = moduleRef.get(HealthController).check();
 

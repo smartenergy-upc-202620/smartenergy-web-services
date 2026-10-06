@@ -1,11 +1,7 @@
 import { gatewayConfig } from './gateway.config';
 
 describe('gatewayConfig', () => {
-  const keys = [
-    'USER_SERVICE_URL',
-    'ENERGY_MONITORING_SERVICE_URL',
-    'ALERT_SERVICE_URL',
-  ];
+  const keys = ['USER_SERVICE_URL', 'ENERGY_SERVICE_URL', 'ALERT_SERVICE_URL'];
   const original = Object.fromEntries(keys.map((k) => [k, process.env[k]]));
 
   afterEach(() => {
