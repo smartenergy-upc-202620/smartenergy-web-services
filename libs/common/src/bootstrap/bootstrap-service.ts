@@ -1,6 +1,10 @@
-import { Logger, Type, ValidationPipe } from '@nestjs/common';
+import { INestApplication, Logger, Type, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import {
+  ApiExceptionFilter,
+  ErrorStatusMap,
+} from '../http/api-exception.filter';
 import { API_GLOBAL_PREFIX, SWAGGER_PATH } from './api.constants';
 import { setupSwagger } from './setup-swagger';
 
@@ -12,10 +16,33 @@ export interface BootstrapServiceOptions {
   /** Environment variable that holds the HTTP port of the service. */
   portEnvKey: string;
   defaultPort: number;
+  /** Errors of the inner layers translated to HTTP status codes. */
+  errorStatuses?: ErrorStatusMap;
+  /** Documents the `Authorization: Bearer <token>` scheme in Swagger. */
+  bearerAuth?: boolean;
 }
 
 /**
- * Shared bootstrap for every service: global prefix, validation and Swagger.
+ * HTTP conventions shared by every application (also used by HTTP tests):
+ * global prefix, validation and consistent error responses.
+ */
+export function configureHttpApp(
+  app: INestApplication,
+  errorStatuses: ErrorStatusMap = [],
+): void {
+  app.setGlobalPrefix(API_GLOBAL_PREFIX);
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
+  app.useGlobalFilters(new ApiExceptionFilter(errorStatuses));
+}
+
+/**
+ * Shared bootstrap for every service: HTTP conventions and Swagger.
  */
 export async function bootstrapService(
   options: BootstrapServiceOptions,
@@ -25,17 +52,12 @@ export async function bootstrapService(
   try {
     const app = await NestFactory.create(options.module);
 
-    app.setGlobalPrefix(API_GLOBAL_PREFIX);
-    app.useGlobalPipes(
-      new ValidationPipe({
-        whitelist: true,
-        forbidNonWhitelisted: true,
-        transform: true,
-      }),
-    );
+    configureHttpApp(app, options.errorStatuses);
+    app.enableShutdownHooks();
     setupSwagger(app, {
       title: options.title,
       description: options.description,
+      bearerAuth: options.bearerAuth,
     });
 
     const port = Number(
