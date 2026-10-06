@@ -10,4 +10,13 @@ export const databaseConfig = registerAs('database', () => ({
   username: process.env.POSTGRES_USER ?? 'smartenergy',
   password: process.env.POSTGRES_PASSWORD,
   database: process.env.POSTGRES_DB ?? 'smartenergy',
+  /**
+   * Lets TypeORM create the service schema and create/update its tables.
+   * Development/test convenience only: forced to `false` when
+   * NODE_ENV=production, whatever DB_SYNCHRONIZE says. Versioned migrations
+   * are future work.
+   */
+  synchronize:
+    process.env.NODE_ENV !== 'production' &&
+    (process.env.DB_SYNCHRONIZE ?? 'true') === 'true',
 }));
