@@ -34,6 +34,18 @@
     "format": "prettier --write \"apps/**/*.ts\" \"libs/**/*.ts\" \"test/**/*.ts\"",
     "db:up": "docker compose up -d postgres",
     "db:down": "docker compose down",
+    "ts-run": "node -r ts-node/register/transpile-only -r tsconfig-paths/register",
+    "typeorm": "node -r ts-node/register/transpile-only -r tsconfig-paths/register ./node_modules/typeorm/cli.js",
+    "migration:run:user": "pnpm ts-run apps/user-service/src/infrastructure/persistence/typeorm/migrate.ts run",
+    "migration:revert:user": "pnpm ts-run apps/user-service/src/infrastructure/persistence/typeorm/migrate.ts revert",
+    "migration:generate:user": "pnpm typeorm migration:generate -d apps/user-service/src/infrastructure/persistence/typeorm/identity-access.data-source.ts",
+    "migration:run:energy": "pnpm ts-run apps/energy-monitoring-service/src/infrastructure/persistence/typeorm/migrate.ts run",
+    "migration:revert:energy": "pnpm ts-run apps/energy-monitoring-service/src/infrastructure/persistence/typeorm/migrate.ts revert",
+    "migration:generate:energy": "pnpm typeorm migration:generate -d apps/energy-monitoring-service/src/infrastructure/persistence/typeorm/energy-monitoring.data-source.ts",
+    "migration:run:alert": "pnpm ts-run apps/alert-service/src/infrastructure/persistence/typeorm/migrate.ts run",
+    "migration:revert:alert": "pnpm ts-run apps/alert-service/src/infrastructure/persistence/typeorm/migrate.ts revert",
+    "migration:generate:alert": "pnpm typeorm migration:generate -d apps/alert-service/src/infrastructure/persistence/typeorm/alerting.data-source.ts",
+    "migration:run:all": "pnpm migration:run:user && pnpm migration:run:energy && pnpm migration:run:alert",
     "demo:seed": "node scripts/demo-seed.mjs"
   },
   "dependencies": {
@@ -50,6 +62,8 @@
     "pg": "^8.23.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
     "typeorm": "^1.1.1"
   },
   "devDependencies": {
