@@ -13,7 +13,10 @@ import { GetCurrentUserUseCase } from './application/use-cases/get-current-user.
 import { LoginUserUseCase } from './application/use-cases/login-user.use-case';
 import { RegisterUserUseCase } from './application/use-cases/register-user.use-case';
 import { USER_REPOSITORY } from './domain/repositories/user.repository';
-import { UserOrmEntity } from './infrastructure/persistence/typeorm/entities/user.orm-entity';
+import {
+  IDENTITY_ACCESS_ORM_ENTITIES,
+  IDENTITY_ACCESS_SCHEMA,
+} from './infrastructure/persistence/typeorm/identity-access.persistence';
 import { TypeOrmUserRepository } from './infrastructure/persistence/typeorm/repositories/typeorm-user.repository';
 import { BcryptPasswordHasher } from './infrastructure/security/bcrypt-password-hasher';
 import { JwtTokenService } from './infrastructure/security/jwt-token-service';
@@ -25,8 +28,8 @@ import { JwtAuthGuard } from './interfaces/http/guards/jwt-auth.guard';
   imports: [
     AppConfigModule,
     HealthModule.register('user-service'),
-    postgresTypeOrmModule('identity_access', [UserOrmEntity]),
-    TypeOrmModule.forFeature([UserOrmEntity]),
+    postgresTypeOrmModule(IDENTITY_ACCESS_SCHEMA, IDENTITY_ACCESS_ORM_ENTITIES),
+    TypeOrmModule.forFeature(IDENTITY_ACCESS_ORM_ENTITIES),
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
