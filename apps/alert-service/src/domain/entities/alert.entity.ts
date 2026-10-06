@@ -1,9 +1,10 @@
 export interface AlertProps {
   id: string;
-  alertRuleId: string;
+  ruleId: string;
   deviceId: string;
   consumptionKwh: number;
-  triggeredAt: Date;
+  message: string;
+  createdAt: Date;
 }
 
 export class Alert {
@@ -13,8 +14,8 @@ export class Alert {
     return this.props.id;
   }
 
-  get alertRuleId(): string {
-    return this.props.alertRuleId;
+  get ruleId(): string {
+    return this.props.ruleId;
   }
 
   get deviceId(): string {
@@ -25,7 +26,11 @@ export class Alert {
     return this.props.consumptionKwh;
   }
 
-  get triggeredAt(): Date {
-    return this.props.triggeredAt;
+  get message(): string {
+    return this.props.message;
+  }
+
+  get createdAt(): Date {
+    return this.props.createdAt;
   }
 }

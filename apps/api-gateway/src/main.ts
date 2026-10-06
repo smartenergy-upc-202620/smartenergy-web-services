@@ -8,4 +8,5 @@ void bootstrapService({
   description: 'Single entry point (Facade) of the SmartEnergy backend.',
   portEnvKey: 'API_GATEWAY_PORT',
   defaultPort: 3000,
+  bearerAuth: true,
 });

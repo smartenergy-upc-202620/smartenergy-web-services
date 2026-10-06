@@ -1,5 +1,6 @@
 import { bootstrapService } from '@app/common';
 import { AppModule } from './app.module';
+import { ENERGY_ERROR_STATUSES } from './interfaces/http/error-statuses';
 
 void bootstrapService({
   module: AppModule,
@@ -9,4 +10,5 @@ void bootstrapService({
     'Energy Monitoring Context: energy measurements and consumption summaries.',
   portEnvKey: 'ENERGY_MONITORING_SERVICE_PORT',
   defaultPort: 3002,
+  errorStatuses: ENERGY_ERROR_STATUSES,
 });
