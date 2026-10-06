@@ -86,18 +86,33 @@ describe.each(BUSINESS_SERVICES)('Bounded Context: %s', (service) => {
     expect(violations).toEqual([]);
   });
 
-  it('does not import code from other applications', () => {
-    const violations = importsIn(appDir)
-      .filter(isRelative)
-      .filter(
-        (ref) =>
-          isInside(target(ref), APPS_DIR) && !isInside(target(ref), appDir),
-      )
+  it('keeps TypeORM inside infrastructure', () => {
+    const violations = ['domain', 'application', 'interfaces']
+      .flatMap((layer) => importsIn(join(srcDir, layer)))
+      .filter(({ specifier }) => /^(@nestjs\/)?typeorm(\/|$)/.test(specifier))
       .map(describeRef);
 
     expect(violations).toEqual([]);
   });
 });
+
+describe.each([...BUSINESS_SERVICES, 'api-gateway'])(
+  'Application: %s',
+  (service) => {
+    it('does not import code from other applications', () => {
+      const appDir = join(APPS_DIR, service);
+      const violations = importsIn(appDir)
+        .filter(isRelative)
+        .filter(
+          (ref) =>
+            isInside(target(ref), APPS_DIR) && !isInside(target(ref), appDir),
+        )
+        .map(describeRef);
+
+      expect(violations).toEqual([]);
+    });
+  },
+);
 
 describe('Shared libraries', () => {
   it('never depend on applications', () => {
