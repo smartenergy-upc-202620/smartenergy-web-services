@@ -1,0 +1,23 @@
+{
+  "info": {
+    "name": "SmartEnergy Web Services",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "apiGatewayUrl", "value": "http://localhost:3000" },
+    { "key": "userServiceUrl", "value": "http://localhost:3001" },
+    { "key": "energyMonitoringServiceUrl", "value": "http://localhost:3002" },
+    { "key": "alertServiceUrl", "value": "http://localhost:3003" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        { "name": "API Gateway health", "request": { "method": "GET", "url": "{{apiGatewayUrl}}/api/v1/health" } },
+        { "name": "User Service health", "request": { "method": "GET", "url": "{{userServiceUrl}}/api/v1/health" } },
+        { "name": "Energy Monitoring Service health", "request": { "method": "GET", "url": "{{energyMonitoringServiceUrl}}/api/v1/health" } },
+        { "name": "Alert Service health", "request": { "method": "GET", "url": "{{alertServiceUrl}}/api/v1/health" } }
+      ]
+    }
+  ]
+}
