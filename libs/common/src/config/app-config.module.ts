@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { databaseConfig } from './database.config';
 
 /**
- * Loads the `.env` file and registers the shared configuration namespaces.
- * Import it once in the root module of every application.
+ * Loads the `.env` file (variables already set in the environment win).
+ * Import it once in the root module of every application. Feature
+ * configuration (e.g. the database) is registered by the modules that use it,
+ * so the API Gateway never requires database settings.
  */
 @Module({
   imports: [
@@ -12,7 +13,6 @@ import { databaseConfig } from './database.config';
       isGlobal: true,
       cache: true,
       envFilePath: ['.env'],
-      load: [databaseConfig],
     }),
   ],
 })
