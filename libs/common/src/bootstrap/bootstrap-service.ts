@@ -1,11 +1,11 @@
 import { INestApplication, Logger, Type, ValidationPipe } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import {
   ApiExceptionFilter,
   ErrorStatusMap,
 } from '../http/api-exception.filter';
 import { API_GLOBAL_PREFIX, SWAGGER_PATH } from './api.constants';
+import { resolvePort } from './resolve-port';
 import { setupSwagger } from './setup-swagger';
 
 export interface BootstrapServiceOptions {
@@ -13,8 +13,12 @@ export interface BootstrapServiceOptions {
   serviceName: string;
   title: string;
   description: string;
-  /** Environment variable that holds the HTTP port of the service. */
+  /**
+   * Service-specific port variable, used when `PORT` (set by cloud
+   * providers) is absent.
+   */
   portEnvKey: string;
+  /** Local default port. */
   defaultPort: number;
   /** Errors of the inner layers translated to HTTP status codes. */
   errorStatuses?: ErrorStatusMap;
@@ -60,14 +64,11 @@ export async function bootstrapService(
       bearerAuth: options.bearerAuth,
     });
 
-    const port = Number(
-      app.get(ConfigService).get(options.portEnvKey, options.defaultPort),
-    );
+    const port = resolvePort(options.portEnvKey, options.defaultPort);
     await app.listen(port);
 
-    logger.log(`Listening on http://localhost:${port}/${API_GLOBAL_PREFIX}`);
     logger.log(
-      `Swagger UI available at http://localhost:${port}/${SWAGGER_PATH}`,
+      `Listening on port ${port}: /${API_GLOBAL_PREFIX}, /${SWAGGER_PATH}`,
     );
   } catch (error) {
     logger.error('Failed to start service', error);

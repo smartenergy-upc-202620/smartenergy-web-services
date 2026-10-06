@@ -11,7 +11,7 @@ Goal: a first working version of the SmartEnergy backend, reachable through the 
 | Energy Monitoring Service (measurements, summary) | Message Broker, Event Processor |
 | Alert Service (rules, evaluation, alerts) | Physical sensors |
 | API Gateway (Facade) | Cloud deployment |
-| PostgreSQL, one schema per context, via TypeORM | Versioned database migrations |
+| PostgreSQL, one schema per context, via TypeORM | |
 | Swagger on the four applications, Postman collection | |
 | Patterns: Facade, Repository, Entity, Strategy | |
 
@@ -85,7 +85,7 @@ IoT Gateway, MQTT, Message Broker, Event Processor, Observer/event-driven integr
 ## Open points for the next sprints
 
 - **Authorization on measurements and alerts.** These endpoints are public and measurements are not linked to a user or device owner yet. Validating the JWT in these services (or at the gateway) needs a decision on how the token or its claims are shared between contexts.
-- **Migrations.** Tables are created with TypeORM synchronization (development only, disabled in production). Versioned migrations are needed before any shared environment.
+- **Migrations.** In Sprint 1 tables were created with TypeORM synchronization. Addressed by the deployment preparation: versioned migrations per context ([`deployment.md`](deployment.md)).
 - **Scalability of the queries.** Lists have no pagination, and the consumption summary is computed in memory over the matching rows. Both are marked with `TODO` comments in the code.
 - **Rule evaluation triggering.** `POST /alerts/evaluate` is explicit. It will be replaced or complemented by events from Energy Monitoring.
-- The applications are not containerized; only PostgreSQL runs in Docker.
+- The applications are not containerized; only PostgreSQL runs in Docker. Cloud deployment (Railway) is prepared in [`deployment.md`](deployment.md).

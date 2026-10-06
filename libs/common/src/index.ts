@@ -1,5 +1,6 @@
 export * from './config/app-config.module';
 export * from './config/database.config';
+export * from './database/migration-cli';
 export * from './database/postgres-typeorm.module';
 export * from './health/health.constants';
 export * from './health/health-response.dto';
@@ -8,5 +9,6 @@ export * from './health/health.module';
 export * from './http/api-exception.filter';
 export * from './http/error-response.dto';
 export * from './bootstrap/api.constants';
+export * from './bootstrap/resolve-port';
 export * from './bootstrap/setup-swagger';
 export * from './bootstrap/bootstrap-service';

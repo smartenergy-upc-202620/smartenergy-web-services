@@ -88,6 +88,7 @@ smartenergy-web-services/
 ├── scripts/demo-seed.mjs            # Datos de demostración vía API Gateway
 ├── test/
 │   ├── architecture/                # Reglas de dependencia DDD
+│   ├── persistence/                 # DataSources de migración por contexto
 │   └── support/                     # Helpers de pruebas HTTP
 ├── docs/                            # Documentación
 ├── .env.example
@@ -99,8 +100,8 @@ smartenergy-web-services/
 
 ## Requisitos
 
-- Node.js 20.19+ (probado con 22.20)
-- pnpm (probado con 12.5)
+- Node.js `^20.19 || ^22.13 || >=24.11` (lo exige TypeORM; probado con 22.20)
+- pnpm 12.5 (fijado en `packageManager`)
 - Docker con Docker Compose (para PostgreSQL)
 
 ## Instalación
@@ -122,10 +123,14 @@ Documentadas en [`.env.example`](.env.example). El archivo `.env` real nunca se 
 
 | Variable | Usada por | Descripción |
 | --- | --- | --- |
-| `API_GATEWAY_PORT`, `USER_SERVICE_PORT`, `ENERGY_MONITORING_SERVICE_PORT`, `ALERT_SERVICE_PORT` | cada app | Puertos HTTP (3000–3003 por defecto). |
-| `USER_SERVICE_URL`, `ENERGY_SERVICE_URL`, `ALERT_SERVICE_URL` | api-gateway | URLs de los servicios a los que enruta el gateway. |
-| `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` | servicios de negocio, Docker Compose | Conexión a PostgreSQL. |
-| `DB_SYNCHRONIZE` | servicios de negocio | `true` (por defecto) crea el schema propio y sincroniza las tablas. Siempre desactivado con `NODE_ENV=production`. |
+| `NODE_ENV` | cada app | `production` en la nube: desactiva `synchronize`, elimina los defaults de localhost y exige configuración explícita. |
+| `PORT` | cada app | Puerto asignado por el proveedor cloud; tiene prioridad. No definirlo en local. |
+| `API_GATEWAY_PORT`, `USER_SERVICE_PORT`, `ENERGY_MONITORING_SERVICE_PORT`, `ALERT_SERVICE_PORT` | cada app | Puertos HTTP locales (3000–3003 por defecto). |
+| `USER_SERVICE_URL`, `ENERGY_SERVICE_URL`, `ALERT_SERVICE_URL` | api-gateway | URLs de los servicios a los que enruta el gateway. Obligatorias en producción. |
+| `DATABASE_URL` | servicios de negocio, migraciones | Conexión completa (nube). Tiene prioridad sobre `POSTGRES_*`. |
+| `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` | servicios de negocio, migraciones, Docker Compose | Conexión a PostgreSQL cuando no hay `DATABASE_URL`. |
+| `DB_SSL`, `DB_SSL_REJECT_UNAUTHORIZED` | servicios de negocio, migraciones | TLS hacia PostgreSQL en la nube (`DB_SSL=true`). |
+| `DB_SYNCHRONIZE` | servicios de negocio | `false` por defecto. `true` es un atajo opcional para bases locales desechables; siempre desactivado con `NODE_ENV=production`. |
 | `JWT_SECRET`, `JWT_EXPIRES_IN` | user-service | Firma y duración (`1h` por defecto) del access token. `JWT_SECRET` es obligatorio. |
 
 ## PostgreSQL
@@ -144,9 +149,20 @@ docker compose ps        # el contenedor smartenergy-postgres debe estar "health
 pnpm db:down             # detener
 ```
 
-Al arrancar con `DB_SYNCHRONIZE=true`, cada servicio crea su schema (`CREATE SCHEMA IF NOT EXISTS`) y sus tablas mediante TypeORM. Las migraciones versionadas quedan como pendiente para entornos no locales.
+Las tablas se crean con **migraciones TypeORM**, una por Bounded Context, cada una sobre su propio schema:
+
+```bash
+pnpm migration:run:all                        # user, energy y alert, en orden
+pnpm migration:run:user                       # o por contexto (también :energy, :alert)
+pnpm migration:revert:alert                   # revierte la última migración de ese contexto
+pnpm migration:generate:alert <ruta/Nombre>   # genera una migración desde las ORM entities
+```
+
+Si tu base local se creó en Sprint 1 con `synchronize`, recréala antes de usar migraciones (`docker compose down -v`, borra los datos locales). Detalles en [`docs/deployment.md`](docs/deployment.md#database-migrations).
 
 ## Ejecución
+
+Requiere PostgreSQL en marcha y las migraciones aplicadas (`pnpm migration:run:all`).
 
 ```bash
 pnpm start:dev:all                          # los cuatro servicios en modo watch (alias: pnpm start:dev)
@@ -178,6 +194,7 @@ El script [`scripts/demo-seed.mjs`](scripts/demo-seed.mjs) usa **solo el API Gat
 ```bash
 pnpm test        # Jest: unitarias, HTTP y reglas de arquitectura
 pnpm test:cov    # con cobertura (reporte en coverage/)
+pnpm typecheck   # TypeScript sin emitir (apps, libs y tests)
 ```
 
 Los tests no requieren PostgreSQL ni servicios levantados. Resumen en [`docs/testing.md`](docs/testing.md). No hay linter configurado.
@@ -260,11 +277,15 @@ curl $G/alerts
 
 ## Docker
 
-`docker-compose.yml` levanta solo PostgreSQL 17 con health check (`pg_isready`) y un volumen persistente. Las cuatro aplicaciones se ejecutan localmente con pnpm; contenerizarlas queda fuera de Sprint 1.
+`docker-compose.yml` levanta solo PostgreSQL 17 con health check (`pg_isready`) y un volumen persistente. Las cuatro aplicaciones se ejecutan con pnpm, tanto en local como en la nube (sin Dockerfiles propios).
+
+## Deployment
+
+El monorepo está preparado para desplegarse en un proveedor compatible con pnpm como Railway: cada app soporta `PORT`, la base de datos acepta `DATABASE_URL` y SSL, y las tablas se crean con migraciones en el pre-deploy. Procedimiento, variables, comandos y rollback en [`docs/deployment.md`](docs/deployment.md).
 
 ## Fuera de alcance (Sprint 1)
 
-IoT Gateway, MQTT, Message Broker (RabbitMQ / Kafka), Event Processor, integración event-driven (Observer), sensores físicos, machine learning, predicción, recomendaciones, frontend, pagos, suscripciones y despliegue en la nube.
+IoT Gateway, MQTT, Message Broker (RabbitMQ / Kafka), Event Processor, integración event-driven (Observer), sensores físicos, machine learning, predicción, recomendaciones, frontend, pagos y suscripciones. El despliegue cloud está preparado (ver arriba) pero no se ha ejecutado.
 
 ## Documentación
 
@@ -273,3 +294,4 @@ IoT Gateway, MQTT, Message Broker (RabbitMQ / Kafka), Event Processor, integraci
 - [`docs/patterns.md`](docs/patterns.md): dónde están Facade, Repository, Entity y Strategy.
 - [`docs/testing.md`](docs/testing.md): pruebas automatizadas y BDD.
 - [`docs/refactoring-report.md`](docs/refactoring-report.md): del scaffolding inicial a la implementación de Sprint 1.
+- [`docs/deployment.md`](docs/deployment.md): deployment cloud (Railway), migraciones, variables y rollback.

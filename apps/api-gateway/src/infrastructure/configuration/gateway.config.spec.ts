@@ -1,7 +1,12 @@
 import { gatewayConfig } from './gateway.config';
 
 describe('gatewayConfig', () => {
-  const keys = ['USER_SERVICE_URL', 'ENERGY_SERVICE_URL', 'ALERT_SERVICE_URL'];
+  const keys = [
+    'NODE_ENV',
+    'USER_SERVICE_URL',
+    'ENERGY_SERVICE_URL',
+    'ALERT_SERVICE_URL',
+  ];
   const original = Object.fromEntries(keys.map((k) => [k, process.env[k]]));
 
   afterEach(() => {
@@ -12,7 +17,7 @@ describe('gatewayConfig', () => {
   });
 
   it('falls back to local default URLs', () => {
-    keys.forEach((k) => delete process.env[k]);
+    keys.slice(1).forEach((k) => delete process.env[k]);
 
     expect(gatewayConfig()).toEqual({
       userServiceUrl: 'http://localhost:3001',
@@ -25,5 +30,16 @@ describe('gatewayConfig', () => {
     process.env.USER_SERVICE_URL = 'http://user-service:3001';
 
     expect(gatewayConfig().userServiceUrl).toBe('http://user-service:3001');
+  });
+
+  it('never falls back to localhost in production', () => {
+    process.env.NODE_ENV = 'production';
+    process.env.USER_SERVICE_URL = 'https://user.example.com';
+    process.env.ENERGY_SERVICE_URL = 'https://energy.example.com';
+    delete process.env.ALERT_SERVICE_URL;
+
+    expect(() => gatewayConfig()).toThrow(
+      'ALERT_SERVICE_URL must be set in production',
+    );
   });
 });

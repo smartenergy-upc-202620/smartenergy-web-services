@@ -66,7 +66,9 @@ TypeORM decorators live only on persistence classes (`*.orm-entity.ts`). Mappers
 ### Database
 
 - One PostgreSQL instance (`docker-compose.yml`), one schema per Bounded Context.
-- `libs/common` exposes `postgresTypeOrmModule(schema, entities)`, which connects a service with `schema` as its default. With `DB_SYNCHRONIZE=true` (the default outside production) the service first runs `CREATE SCHEMA IF NOT EXISTS` for its own schema and then lets TypeORM synchronize its tables. TypeORM does not create schemas by itself.
+- `libs/common` exposes `postgresTypeOrmModule(schema, entities)`, which connects a service with `schema` as its default. The connection comes from `DATABASE_URL` (cloud) or `POSTGRES_*`, with optional TLS (`DB_SSL`); in production it must be fully configured.
+- Schemas and tables are created by versioned TypeORM migrations, one migration DataSource per Bounded Context in `infrastructure/persistence/typeorm/` (`<context>.data-source.ts`, `migrations/`, `migrate.ts`). The schema name and ORM entity list live in `<context>.persistence.ts`, shared by the app module and its migrations. Each context keeps its migration history in `<schema>.migrations`. See [`deployment.md`](deployment.md#database-migrations).
+- `synchronize` is never used in production. Outside production it is an opt-in shortcut (`DB_SYNCHRONIZE=true`) for throwaway databases; the service then creates its own schema first, because TypeORM does not create schemas by itself.
 - Ids are UUID v4 generated in the application layer (`crypto.randomUUID`). Invalid ids in routes are rejected with 400 (`ParseUUIDPipe`) before reaching the database.
 - Tables: `identity_access.users` (unique `email`), `energy_monitoring.energy_measurements` (index on `device_id`), `alerting.alert_rules`, `alerting.alerts` (index and foreign key on `rule_id`).
 

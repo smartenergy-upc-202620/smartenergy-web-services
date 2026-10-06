@@ -9,8 +9,8 @@ The tests need neither PostgreSQL nor running services.
 
 ## Current result
 
-- 39 suites, 143 tests, all passing.
-- Coverage: 95.6% statements, 86.7% branches, 97.1% functions, 95.3% lines. The uncovered code is mainly the `main.ts` entry points, the process bootstrap and the TypeORM data source factory. These are exercised by the manual run against PostgreSQL described in [`sprint-1.md`](sprint-1.md).
+- 42 suites, 165 tests, all passing.
+- Coverage: 93.6% statements, 86.0% branches, 94.1% functions, 93.0% lines. The uncovered code is mainly the `main.ts` and `migrate.ts` entry points, the `up`/`down` bodies of the migrations, the process bootstrap and the TypeORM data source factory. These run against a real PostgreSQL in the validations described in [`sprint-1.md`](sprint-1.md) and [`deployment.md`](deployment.md).
 
 ## Kinds of tests
 
@@ -35,9 +35,9 @@ Shared test helpers live in `test/support/http-test-app.ts`. The user-service HT
 
 **Alert (11 suites):** `AlertRule`, `Alert`, `ThresholdAlertStrategy`, `CreateAlertRuleUseCase`, `EvaluateMeasurementForAlertsUseCase`, `ListAlertsUseCase` + `ListAlertRulesUseCase`, `GetAlertByIdUseCase`, `AlertRuleMapper` + `AlertMapper`, both TypeORM repositories, Alert rules/Alerts HTTP API, `AppModule`.
 
-**Gateway (4 suites):** gateway config, `DownstreamProxy`, routing, `AppModule`.
+**Gateway (4 suites):** gateway config (no localhost fallback in production), `DownstreamProxy`, routing, `AppModule` (starts in production without database settings).
 
-**Common and architecture (4 suites):** `HealthController`, `ApiExceptionFilter`, `databaseConfig` (synchronize is never enabled in production), layer dependencies.
+**Common, persistence and architecture (7 suites):** `HealthController`, `ApiExceptionFilter`, `databaseConfig` (`DATABASE_URL` precedence, production requirements, SSL, synchronize never enabled in production), `resolvePort` (`PORT` precedence), migration runner (schema creation, exit codes), migration DataSources (each context migrates only its schema/entities and registers every migration file), layer dependencies.
 
 ## BDD specifications (Gherkin)
 

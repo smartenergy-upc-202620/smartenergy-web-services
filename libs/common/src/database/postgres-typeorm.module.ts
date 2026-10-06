@@ -1,29 +1,25 @@
 import { DynamicModule } from '@nestjs/common';
-import { ConfigType } from '@nestjs/config';
+import { ConfigModule, ConfigType } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource, DataSourceOptions } from 'typeorm';
 import { databaseConfig } from '../config/database.config';
 
 /**
  * Connects a service to the shared PostgreSQL instance, restricted to the
- * schema owned by its Bounded Context.
+ * schema owned by its Bounded Context. Tables are created by the context's
+ * migrations; `synchronize` is only an opt-in shortcut outside production.
  */
 export function postgresTypeOrmModule(
   schema: string,
   entities: DataSourceOptions['entities'],
 ): DynamicModule {
   return TypeOrmModule.forRootAsync({
+    imports: [ConfigModule.forFeature(databaseConfig)],
     inject: [databaseConfig.KEY],
     useFactory: (db: ConfigType<typeof databaseConfig>) => ({
-      type: 'postgres',
-      host: db.host,
-      port: db.port,
-      username: db.username,
-      password: db.password,
-      database: db.database,
+      ...db,
       schema,
       entities,
-      synchronize: db.synchronize,
     }),
     // TypeORM synchronization does not create schemas, so the owning service
     // creates its own schema first.

@@ -10,7 +10,10 @@ import { GetEnergyConsumptionSummaryUseCase } from './application/use-cases/get-
 import { GetEnergyMeasurementByIdUseCase } from './application/use-cases/get-energy-measurement-by-id.use-case';
 import { ListEnergyMeasurementsUseCase } from './application/use-cases/list-energy-measurements.use-case';
 import { ENERGY_MEASUREMENT_REPOSITORY } from './domain/repositories/energy-measurement.repository';
-import { EnergyMeasurementOrmEntity } from './infrastructure/persistence/typeorm/entities/energy-measurement.orm-entity';
+import {
+  ENERGY_MONITORING_ORM_ENTITIES,
+  ENERGY_MONITORING_SCHEMA,
+} from './infrastructure/persistence/typeorm/energy-monitoring.persistence';
 import { TypeOrmEnergyMeasurementRepository } from './infrastructure/persistence/typeorm/repositories/typeorm-energy-measurement.repository';
 import { EnergyMeasurementsController } from './interfaces/http/controllers/energy-measurements.controller';
 
@@ -18,8 +21,11 @@ import { EnergyMeasurementsController } from './interfaces/http/controllers/ener
   imports: [
     AppConfigModule,
     HealthModule.register('energy-monitoring-service'),
-    postgresTypeOrmModule('energy_monitoring', [EnergyMeasurementOrmEntity]),
-    TypeOrmModule.forFeature([EnergyMeasurementOrmEntity]),
+    postgresTypeOrmModule(
+      ENERGY_MONITORING_SCHEMA,
+      ENERGY_MONITORING_ORM_ENTITIES,
+    ),
+    TypeOrmModule.forFeature(ENERGY_MONITORING_ORM_ENTITIES),
   ],
   controllers: [EnergyMeasurementsController],
   providers: [
