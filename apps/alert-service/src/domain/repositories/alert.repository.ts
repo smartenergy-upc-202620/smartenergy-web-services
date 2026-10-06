@@ -3,6 +3,7 @@ import { Alert } from '../entities/alert.entity';
 export interface AlertRepository {
   save(alert: Alert): Promise<void>;
   findById(id: string): Promise<Alert | null>;
+  /** Most recent alerts first. */
   findAll(): Promise<Alert[]>;
 }
 
