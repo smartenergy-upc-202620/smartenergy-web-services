@@ -30,6 +30,19 @@ describe('EnergyMeasurement', () => {
     ).toThrow(InvalidEnergyMeasurementException);
   });
 
+  it('rejects an empty id', () => {
+    expect(() => EnergyMeasurement.create({ ...validProps, id: '' })).toThrow(
+      InvalidEnergyMeasurementException,
+    );
+  });
+
+  it('accepts a zero consumption', () => {
+    expect(
+      EnergyMeasurement.create({ ...validProps, consumptionKwh: 0 })
+        .consumptionKwh,
+    ).toBe(0);
+  });
+
   it('rejects an invalid measurement date', () => {
     expect(() =>
       EnergyMeasurement.create({ ...validProps, measuredAt: new Date('x') }),

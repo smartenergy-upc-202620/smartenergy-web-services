@@ -11,6 +11,9 @@ export class EnergyMeasurement {
   private constructor(private readonly props: EnergyMeasurementProps) {}
 
   static create(props: EnergyMeasurementProps): EnergyMeasurement {
+    if (props.id.trim().length === 0) {
+      throw new InvalidEnergyMeasurementException('id must not be empty');
+    }
     if (props.deviceId.trim().length === 0) {
       throw new InvalidEnergyMeasurementException('deviceId must not be empty');
     }
