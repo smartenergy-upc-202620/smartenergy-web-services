@@ -4,8 +4,9 @@
   "description": "SmartEnergy backend: NestJS monorepo with API Gateway, User, Energy Monitoring and Alert services.",
   "private": true,
   "license": "UNLICENSED",
+  "packageManager": "pnpm@12.5.1",
   "engines": {
-    "node": ">=20"
+    "node": "^20.19.0 || ^22.13.0 || >=24.11.0"
   },
   "scripts": {
     "build": "pnpm run build:api-gateway && pnpm run build:user-service && pnpm run build:energy-monitoring-service && pnpm run build:alert-service",
@@ -31,6 +32,7 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
     "format": "prettier --write \"apps/**/*.ts\" \"libs/**/*.ts\" \"test/**/*.ts\"",
     "db:up": "docker compose up -d postgres",
     "db:down": "docker compose down",

@@ -1,5 +1,5 @@
 import { DynamicModule } from '@nestjs/common';
-import { ConfigType } from '@nestjs/config';
+import { ConfigModule, ConfigType } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource, DataSourceOptions } from 'typeorm';
 import { databaseConfig } from '../config/database.config';
@@ -14,6 +14,7 @@ export function postgresTypeOrmModule(
   entities: DataSourceOptions['entities'],
 ): DynamicModule {
   return TypeOrmModule.forRootAsync({
+    imports: [ConfigModule.forFeature(databaseConfig)],
     inject: [databaseConfig.KEY],
     useFactory: (db: ConfigType<typeof databaseConfig>) => ({
       ...db,

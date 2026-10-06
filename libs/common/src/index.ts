@@ -9,5 +9,6 @@ export * from './health/health.module';
 export * from './http/api-exception.filter';
 export * from './http/error-response.dto';
 export * from './bootstrap/api.constants';
+export * from './bootstrap/resolve-port';
 export * from './bootstrap/setup-swagger';
 export * from './bootstrap/bootstrap-service';
