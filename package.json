@@ -33,7 +33,8 @@
     "test:cov": "jest --coverage",
     "format": "prettier --write \"apps/**/*.ts\" \"libs/**/*.ts\" \"test/**/*.ts\"",
     "db:up": "docker compose up -d postgres",
-    "db:down": "docker compose down"
+    "db:down": "docker compose down",
+    "demo:seed": "node scripts/demo-seed.mjs"
   },
   "dependencies": {
     "@nestjs/common": "^11.2.7",
