@@ -2,8 +2,9 @@ import { AlertRule } from '../entities/alert-rule.entity';
 
 export interface AlertRuleRepository {
   save(rule: AlertRule): Promise<void>;
-  findById(id: string): Promise<AlertRule | null>;
-  findByDeviceId(deviceId: string): Promise<AlertRule[]>;
+  /** Most recent rules first. */
+  findAll(): Promise<AlertRule[]>;
+  findActive(): Promise<AlertRule[]>;
 }
 
 /** Injection token used to bind the PostgreSQL implementation (infrastructure). */

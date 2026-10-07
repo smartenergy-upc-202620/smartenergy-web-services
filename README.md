@@ -1,88 +1,108 @@
 # SmartEnergy Web Services
 
-> **Current status:** Initial backend scaffolding prepared for Sprint 1. Only the health endpoint and the domain skeleton exist; the business functionality is **not** implemented yet.
+> **Estado:** Sprint 1 implementado. Registro y autenticación de usuarios, mediciones energéticas con resumen de consumo, reglas de alerta con evaluación de consumo y un API Gateway como punto de entrada único. Detalle en [`docs/sprint-1.md`](docs/sprint-1.md).
 
 ## ¿Qué es SmartEnergy?
 
-SmartEnergy es una plataforma universitaria para el monitoreo y la optimización del consumo energético en hogares y pequeños negocios. Este repositorio contiene su backend: un conjunto de RESTful Web Services pensado como base de una arquitectura de microservicios.
+SmartEnergy es una plataforma para el monitoreo y la optimización del consumo energético en hogares urbanos y pequeños negocios. Este repositorio contiene su backend: un conjunto de RESTful Web Services organizados como microservicios y diseñados con Domain-Driven Design (DDD).
 
 ## Stack
 
-TypeScript, NestJS 11, pnpm, PostgreSQL, RESTful APIs, Swagger / OpenAPI, Jest, Docker Compose y Git.
+| Área | Tecnología |
+| --- | --- |
+| Lenguaje / framework | TypeScript 5.9, NestJS 11 |
+| Gestor de paquetes | pnpm |
+| Base de datos | PostgreSQL 17 (Docker Compose) |
+| ORM | TypeORM (solo en la capa `infrastructure`) |
+| Autenticación | JWT (`@nestjs/jwt`) + hash de contraseñas con bcrypt (`bcryptjs`) |
+| Validación | class-validator, class-transformer |
+| Documentación API | Swagger / OpenAPI (`@nestjs/swagger`) |
+| Pruebas | Jest, especificaciones BDD en Gherkin, colección Postman |
 
 ## Arquitectura
 
-Monorepo NestJS con cuatro aplicaciones y dos librerías. El diseño aplica Domain-Driven Design (DDD).
+Monorepo NestJS con cuatro aplicaciones y dos librerías.
 
-| Aplicación | Puerto | Rol | Bounded Context |
-| --- | --- | --- | --- |
-| `api-gateway` | 3000 | Punto de entrada único (Facade). Sin lógica de negocio. | — |
-| `user-service` | 3001 | Usuarios, autenticación y autorización básica. | Identity & Access |
-| `energy-monitoring-service` | 3002 | Mediciones de energía y resúmenes de consumo. | Energy Monitoring |
-| `alert-service` | 3003 | Reglas de alerta y alertas. | Alerting |
+| Aplicación | Puerto | Rol | Bounded Context | Schema PostgreSQL |
+| --- | --- | --- | --- | --- |
+| `api-gateway` | 3000 | Punto de entrada único (Facade). Solo enruta, sin lógica de negocio. | — | — |
+| `user-service` | 3001 | Registro, login (JWT) y perfil del usuario autenticado. | Identity & Access | `identity_access` |
+| `energy-monitoring-service` | 3002 | Mediciones de energía y resumen de consumo. | Energy Monitoring | `energy_monitoring` |
+| `alert-service` | 3003 | Reglas de alerta, evaluación de consumo y alertas. | Alerting | `alerting` |
+
+```
+Cliente / Postman
+       │  http://localhost:3000/api/v1/...
+       ▼
+┌──────────────┐   /auth/*, /users/*          ┌──────────────────────────┐
+│ API Gateway  │ ───────────────────────────► │ user-service :3001       │──► identity_access
+│ (Facade)     │   /measurements/*            ├──────────────────────────┤
+│              │ ───────────────────────────► │ energy-monitoring :3002  │──► energy_monitoring
+│              │   /alert-rules/*, /alerts/*  ├──────────────────────────┤
+│              │ ───────────────────────────► │ alert-service :3003      │──► alerting
+└──────────────┘                              └──────────────────────────┘
+                                                 una instancia PostgreSQL
+```
 
 Reglas principales:
 
-- Las entidades de dominio **no se comparten** entre Bounded Contexts y no existe un Shared Kernel grande.
-- `libs/common` (`@app/common`): solo elementos técnicos genéricos (configuración, bootstrap, Swagger, health check).
-- `libs/contracts` (`@app/contracts`): contratos de integración entre servicios (DTOs / eventos compartidos). Hoy está vacía a propósito.
-- Fuera de alcance por ahora: IoT Gateway / Adapter, Message Broker y Event Processor; MQTT, Kafka, RabbitMQ, IA y dispositivos físicos.
+- Cada Bounded Context es dueño de su modelo y de su schema. Ningún servicio importa código de otro ni consulta tablas de otro schema.
+- No hay Shared Kernel. `libs/common` (`@app/common`) solo contiene utilidades técnicas genéricas (bootstrap, configuración, health check, conexión TypeORM por schema, filtro de errores HTTP). `libs/contracts` sigue vacía: en Sprint 1 ningún servicio llama a otro.
+- El API Gateway no valida ni transforma datos de negocio: reenvía método, ruta, query string, body y header `Authorization`, y devuelve el status code y el body del servicio.
 
-Más detalle en [`docs/architecture.md`](docs/architecture.md).
+Más detalle en [`docs/architecture.md`](docs/architecture.md) y patrones en [`docs/patterns.md`](docs/patterns.md).
 
-### Estructura DDD de un Bounded Context
+### Capas DDD de cada Bounded Context
 
 ```
 apps/<service>/src/
-├── domain/            entities, value-objects, repositories (interfaces), services, exceptions
-├── application/       use-cases, dto, ports
-├── infrastructure/    persistence, repositories (PostgreSQL), configuration, adapters
-├── interfaces/http/   controllers, dto, mappers
-├── app.module.ts
+├── domain/            entidades, value objects, contratos de repositorio, servicios de dominio, excepciones
+├── application/       casos de uso, ports (PasswordHasher, TokenService), excepciones de aplicación
+├── infrastructure/    TypeORM (ORM entities, mappers, repositorios), adaptadores (bcrypt, JWT)
+├── interfaces/http/   controllers, DTOs HTTP (validación + Swagger), guards, mapeo de errores → HTTP
+├── app.module.ts      composition root (inyección de dependencias)
 └── main.ts
 ```
-
-Las carpetas se crean solo cuando tienen contenido; hoy los servicios de negocio solo tienen `domain/`. Reglas de dependencia:
 
 ```
 interfaces -> application -> domain
 infrastructure implementa los contratos definidos por domain / application
 ```
 
-`domain` no importa NestJS, Swagger ni ninguna librería de base de datos. Estas reglas se verifican automáticamente en `test/architecture/layer-dependencies.spec.ts`.
+`domain` no importa NestJS, TypeORM, PostgreSQL ni Swagger. TypeORM solo aparece en `infrastructure`. Estas reglas se verifican automáticamente en [`test/architecture/layer-dependencies.spec.ts`](test/architecture/layer-dependencies.spec.ts).
 
 ## Estructura del monorepo
 
 ```
 smartenergy-web-services/
 ├── apps/
-│   ├── api-gateway/
-│   ├── user-service/
-│   ├── energy-monitoring-service/
-│   └── alert-service/
+│   ├── api-gateway/                 # Facade: rutas documentadas + proxy HTTP
+│   ├── user-service/                # Identity & Access
+│   ├── energy-monitoring-service/   # Energy Monitoring
+│   └── alert-service/               # Alerting
 ├── libs/
-│   ├── common/          # @app/common: elementos técnicos genéricos
-│   └── contracts/       # @app/contracts: contratos de integración
-├── features/            # Especificaciones Gherkin (Sprint 1, planificadas)
-├── test/architecture/   # Test de reglas de dependencia DDD
-├── postman/             # Colección de Postman
-├── docs/                # Documentación
+│   ├── common/                      # @app/common: utilidades técnicas genéricas
+│   └── contracts/                   # @app/contracts: contratos de integración (vacía en Sprint 1)
+├── features/                        # Especificaciones BDD (Gherkin)
+├── postman/                         # Colección + environment local
+├── scripts/demo-seed.mjs            # Datos de demostración vía API Gateway
+├── test/
+│   ├── architecture/                # Reglas de dependencia DDD
+│   ├── persistence/                 # DataSources de migración por contexto
+│   └── support/                     # Helpers de pruebas HTTP
+├── docs/                            # Documentación
 ├── .env.example
-├── .gitignore
 ├── docker-compose.yml
 ├── nest-cli.json
 ├── package.json
-├── pnpm-lock.yaml
-├── pnpm-workspace.yaml
-├── tsconfig.json
-└── README.md
+└── tsconfig.json
 ```
 
 ## Requisitos
 
-- Node.js 20 o superior
-- pnpm (probado con 12.x)
-- Docker (para PostgreSQL)
+- Node.js `^20.19 || ^22.13 || >=24.11` (lo exige TypeORM; probado con 22.20)
+- pnpm 12.5 (fijado en `packageManager`)
+- Docker con Docker Compose (para PostgreSQL)
 
 ## Instalación
 
@@ -91,67 +111,187 @@ pnpm install
 cp .env.example .env     # PowerShell: Copy-Item .env.example .env
 ```
 
+Edita `.env` y define al menos `POSTGRES_PASSWORD` y `JWT_SECRET` (valor largo y aleatorio):
+
+```bash
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+```
+
 ## Variables de entorno
 
-Se documentan en [`.env.example`](.env.example). El archivo `.env` real nunca se versiona.
+Documentadas en [`.env.example`](.env.example). El archivo `.env` real nunca se versiona.
 
-| Variable | Descripción |
-| --- | --- |
-| `API_GATEWAY_PORT`, `USER_SERVICE_PORT`, `ENERGY_MONITORING_SERVICE_PORT`, `ALERT_SERVICE_PORT` | Puertos HTTP de cada aplicación. |
-| `USER_SERVICE_URL`, `ENERGY_MONITORING_SERVICE_URL`, `ALERT_SERVICE_URL` | URLs de los servicios que usará el API Gateway. |
-| `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` | Conexión a PostgreSQL. |
-
-Define `POSTGRES_PASSWORD` en tu `.env` antes de levantar la base de datos; el repositorio no incluye credenciales reales.
+| Variable | Usada por | Descripción |
+| --- | --- | --- |
+| `NODE_ENV` | cada app | `production` en la nube: desactiva `synchronize`, elimina los defaults de localhost y exige configuración explícita. |
+| `PORT` | cada app | Puerto asignado por el proveedor cloud; tiene prioridad. No definirlo en local. |
+| `API_GATEWAY_PORT`, `USER_SERVICE_PORT`, `ENERGY_MONITORING_SERVICE_PORT`, `ALERT_SERVICE_PORT` | cada app | Puertos HTTP locales (3000–3003 por defecto). |
+| `USER_SERVICE_URL`, `ENERGY_SERVICE_URL`, `ALERT_SERVICE_URL` | api-gateway | URLs de los servicios a los que enruta el gateway. Obligatorias en producción. |
+| `DATABASE_URL` | servicios de negocio, migraciones | Conexión completa (nube). Tiene prioridad sobre `POSTGRES_*`. |
+| `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` | servicios de negocio, migraciones, Docker Compose | Conexión a PostgreSQL cuando no hay `DATABASE_URL`. |
+| `DB_SSL`, `DB_SSL_REJECT_UNAUTHORIZED` | servicios de negocio, migraciones | TLS hacia PostgreSQL en la nube (`DB_SSL=true`). |
+| `DB_SYNCHRONIZE` | servicios de negocio | `false` por defecto. `true` es un atajo opcional para bases locales desechables; siempre desactivado con `NODE_ENV=production`. |
+| `JWT_SECRET`, `JWT_EXPIRES_IN` | user-service | Firma y duración (`1h` por defecto) del access token. `JWT_SECRET` es obligatorio. |
 
 ## PostgreSQL
 
+Una sola instancia para desarrollo; los datos se separan por schema, uno por Bounded Context.
+
+| Schema | Tablas (Sprint 1) | Dueño |
+| --- | --- | --- |
+| `identity_access` | `users` | user-service |
+| `energy_monitoring` | `energy_measurements` | energy-monitoring-service |
+| `alerting` | `alert_rules`, `alerts` (FK `alerts.rule_id → alert_rules.id`) | alert-service |
+
 ```bash
-pnpm db:up      # levanta PostgreSQL con Docker Compose
-pnpm db:down    # detiene los contenedores
+docker compose up -d     # o: pnpm db:up
+docker compose ps        # el contenedor smartenergy-postgres debe estar "healthy"
+pnpm db:down             # detener
 ```
 
-Hoy ningún servicio se conecta todavía a la base de datos. En Sprint 1 se espera soportar las tablas `users`, `devices`, `energy_measurements`, `alerts` y `alert_rules`.
+Las tablas se crean con **migraciones TypeORM**, una por Bounded Context, cada una sobre su propio schema:
+
+```bash
+pnpm migration:run:all                        # user, energy y alert, en orden
+pnpm migration:run:user                       # o por contexto (también :energy, :alert)
+pnpm migration:revert:alert                   # revierte la última migración de ese contexto
+pnpm migration:generate:alert <ruta/Nombre>   # genera una migración desde las ORM entities
+```
+
+Si tu base local se creó en Sprint 1 con `synchronize`, recréala antes de usar migraciones (`docker compose down -v`, borra los datos locales). Detalles en [`docs/deployment.md`](docs/deployment.md#database-migrations).
 
 ## Ejecución
 
-```bash
-pnpm start:dev                      # los cuatro servicios en modo watch
-pnpm start:dev:api-gateway          # solo uno (user-service, energy-monitoring-service, alert-service)
-```
-
-## Build
+Requiere PostgreSQL en marcha y las migraciones aplicadas (`pnpm migration:run:all`).
 
 ```bash
-pnpm build                          # compila las cuatro aplicaciones en dist/
-pnpm start:prod                     # ejecuta el build compilado
+pnpm start:dev:all                          # los cuatro servicios en modo watch (alias: pnpm start:dev)
+pnpm start:dev:api-gateway                  # o cada uno por separado
+pnpm start:dev:user-service
+pnpm start:dev:energy-monitoring-service
+pnpm start:dev:alert-service
 ```
+
+Build y ejecución compilada:
+
+```bash
+pnpm build
+pnpm start:prod
+```
+
+## Datos de demostración
+
+Con los cuatro servicios levantados:
+
+```bash
+pnpm demo:seed
+```
+
+El script [`scripts/demo-seed.mjs`](scripts/demo-seed.mjs) usa **solo el API Gateway** (no escribe en la base de datos directamente): registra `demo@example.com` / `DemoPassword123`, crea cinco mediciones, la regla "High consumption" (5 kWh) y evalúa un consumo de 8.2 kWh. Es idempotente para el usuario y la regla. Nunca se ejecuta automáticamente; no usarlo contra producción.
 
 ## Testing
 
 ```bash
-pnpm test                           # Jest
-pnpm test:cov                       # con cobertura
+pnpm test        # Jest: unitarias, HTTP y reglas de arquitectura
+pnpm test:cov    # con cobertura (reporte en coverage/)
+pnpm typecheck   # TypeScript sin emitir (apps, libs y tests)
 ```
 
-Hoy los tests solo cubren el scaffolding: health check de cada aplicación, configuración del gateway, modelo de dominio inicial y reglas de arquitectura. No hay linter configurado todavía.
+Los tests no requieren PostgreSQL ni servicios levantados. Resumen en [`docs/testing.md`](docs/testing.md). No hay linter configurado.
 
 ## Swagger / OpenAPI
 
-Cada aplicación publica su documentación en `http://localhost:<puerto>/docs`.
+| Aplicación | Swagger UI | OpenAPI JSON |
+| --- | --- | --- |
+| API Gateway | http://localhost:3000/docs | http://localhost:3000/docs-json |
+| User Service | http://localhost:3001/docs | http://localhost:3001/docs-json |
+| Energy Monitoring Service | http://localhost:3002/docs | http://localhost:3002/docs-json |
+| Alert Service | http://localhost:3003/docs | http://localhost:3003/docs-json |
 
-## Endpoints disponibles hoy
+`GET /users/me` usa el esquema Bearer: pulsa **Authorize** y pega el `accessToken` del login.
 
-| Aplicación | URL |
-| --- | --- |
-| API Gateway | `GET http://localhost:3000/api/v1/health` |
-| User Service | `GET http://localhost:3001/api/v1/health` |
-| Energy Monitoring Service | `GET http://localhost:3002/api/v1/health` |
-| Alert Service | `GET http://localhost:3003/api/v1/health` |
+## Postman
 
-## Alcance planificado para Sprint 1 (NO implementado)
+1. Importa [`postman/SmartEnergy.postman_collection.json`](postman/SmartEnergy.postman_collection.json) y [`postman/SmartEnergy.local.postman_environment.json`](postman/SmartEnergy.local.postman_environment.json).
+2. Selecciona el environment **SmartEnergy Local**.
+3. Ejecuta la colección en orden: Health → Authentication → Energy Measurements → Alert Rules → Alerts.
 
-- User Service: `POST /auth/register`, `POST /auth/login`, `GET /users/me`.
-- Energy Monitoring Service: `POST /measurements`, `GET /measurements`, `GET /measurements/:id`, `GET /measurements/summary`.
-- Alert Service: `GET /alerts`, `GET /alerts/:id`, `POST /alert-rules`.
+Los scripts guardan `accessToken`, `measurementId`, `alertRuleId` y `alertId`. El registro genera un email nuevo en cada ejecución, así que la colección se puede repetir.
 
-Las especificaciones Gherkin de estas funcionalidades están en [`features/`](features) y están marcadas como `@sprint-1 @planned`.
+## Endpoints
+
+Todas las rutas tienen el prefijo `/api/v1`. El cliente usa el API Gateway (`http://localhost:3000`).
+
+| Método | Ruta | Servicio | Auth | Descripción |
+| --- | --- | --- | --- | --- |
+| POST | `/auth/register` | user | — | Registrar usuario (`HOME_USER` o `BUSINESS_ADMIN`). 201 / 400 / 409 |
+| POST | `/auth/login` | user | — | Login, devuelve `accessToken` + usuario. 200 / 400 / 401 |
+| GET | `/users/me` | user | Bearer | Perfil del usuario autenticado. 200 / 401 |
+| POST | `/measurements` | energy | — | Registrar medición (ID generado en backend). 201 / 400 |
+| GET | `/measurements?deviceId=` | energy | — | Listar mediciones (más recientes primero), filtro opcional por dispositivo. 200 |
+| GET | `/measurements/summary?deviceId=` | energy | — | Total de mediciones, consumo total y promedio. 200 |
+| GET | `/measurements/:id` | energy | — | Medición por id (UUID). 200 / 400 / 404 |
+| POST | `/alert-rules` | alert | — | Crear regla de umbral. 201 / 400 |
+| GET | `/alert-rules` | alert | — | Listar reglas. 200 |
+| POST | `/alerts/evaluate` | alert | — | Evaluar un consumo contra las reglas activas y crear alertas. 200 / 400 |
+| GET | `/alerts` | alert | — | Listar alertas (más recientes primero). 200 |
+| GET | `/alerts/:id` | alert | — | Alerta por id (UUID). 200 / 400 / 404 |
+| GET | `/health` | cada app | — | Health check propio. |
+| GET | `/system/health` | gateway | — | Estado de los tres servicios (200 o 503). |
+
+Todas las respuestas de error tienen el mismo formato:
+
+```json
+{
+  "statusCode": 404,
+  "error": "Not Found",
+  "message": "Alert \"00000000-0000-4000-8000-000000000000\" was not found",
+  "path": "/api/v1/alerts/00000000-0000-4000-8000-000000000000",
+  "timestamp": "2026-10-06T10:31:00.000Z"
+}
+```
+
+Los errores inesperados devuelven `500` con el mensaje `Internal server error`, sin stack trace.
+
+### Ejemplo de flujo
+
+```bash
+G=http://localhost:3000/api/v1
+
+curl -X POST $G/auth/register -H 'content-type: application/json' \
+  -d '{"email":"user@example.com","password":"StrongPassword123","role":"HOME_USER"}'
+
+TOKEN=$(curl -s -X POST $G/auth/login -H 'content-type: application/json' \
+  -d '{"email":"user@example.com","password":"StrongPassword123"}' | node -pe "JSON.parse(require('fs').readFileSync(0)).accessToken")
+
+curl $G/users/me -H "Authorization: Bearer $TOKEN"
+
+curl -X POST $G/measurements -H 'content-type: application/json' \
+  -d '{"deviceId":"device-001","consumptionKwh":3.75,"measuredAt":"2026-10-06T10:30:00.000Z"}'
+curl $G/measurements/summary
+
+curl -X POST $G/alert-rules -H 'content-type: application/json' -d '{"name":"High consumption","thresholdKwh":5.0}'
+curl -X POST $G/alerts/evaluate -H 'content-type: application/json' -d '{"deviceId":"device-001","consumptionKwh":8.2}'
+curl $G/alerts
+```
+
+## Docker
+
+`docker-compose.yml` levanta solo PostgreSQL 17 con health check (`pg_isready`) y un volumen persistente. Las cuatro aplicaciones se ejecutan con pnpm, tanto en local como en la nube (sin Dockerfiles propios).
+
+## Deployment
+
+El monorepo está preparado para desplegarse en un proveedor compatible con pnpm como Railway: cada app soporta `PORT`, la base de datos acepta `DATABASE_URL` y SSL, y las tablas se crean con migraciones en el pre-deploy. Procedimiento, variables, comandos y rollback en [`docs/deployment.md`](docs/deployment.md).
+
+## Fuera de alcance (Sprint 1)
+
+IoT Gateway, MQTT, Message Broker (RabbitMQ / Kafka), Event Processor, integración event-driven (Observer), sensores físicos, machine learning, predicción, recomendaciones, frontend, pagos y suscripciones. El despliegue cloud está preparado (ver arriba) pero no se ha ejecutado.
+
+## Documentación
+
+- [`docs/architecture.md`](docs/architecture.md): arquitectura, capas y reglas de dependencia.
+- [`docs/sprint-1.md`](docs/sprint-1.md): qué se entregó en Sprint 1.
+- [`docs/patterns.md`](docs/patterns.md): dónde están Facade, Repository, Entity y Strategy.
+- [`docs/testing.md`](docs/testing.md): pruebas automatizadas y BDD.
+- [`docs/refactoring-report.md`](docs/refactoring-report.md): del scaffolding inicial a la implementación de Sprint 1.
+- [`docs/deployment.md`](docs/deployment.md): deployment cloud (Railway), migraciones, variables y rollback.
