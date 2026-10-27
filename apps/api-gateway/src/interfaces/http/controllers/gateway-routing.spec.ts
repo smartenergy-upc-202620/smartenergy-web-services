@@ -83,6 +83,7 @@ describe('API Gateway routing (Facade)', () => {
     ['POST', '/api/v1/measurements', 'energy-monitoring-service'],
     ['GET', '/api/v1/measurements', 'energy-monitoring-service'],
     ['GET', '/api/v1/measurements/summary', 'energy-monitoring-service'],
+    ['GET', '/api/v1/measurements/estimated-cost?deviceId=device-001&tariffPerKwh=0.7', 'energy-monitoring-service'],
     ['GET', `/api/v1/measurements/${id}`, 'energy-monitoring-service'],
     ['POST', '/api/v1/alert-rules', 'alert-service'],
     ['GET', '/api/v1/alert-rules', 'alert-service'],
