@@ -16,6 +16,7 @@ import { DownstreamProxy } from '../../../infrastructure/http/downstream-proxy';
 import {
   ConsumptionSummaryDoc,
   CreateMeasurementRequestDoc,
+  EstimatedEnergyCostDoc,
   MeasurementDoc,
 } from '../dto/gateway-docs.dto';
 
@@ -54,6 +55,29 @@ export class EnergyRoutesController {
   @ApiQuery(DEVICE_FILTER)
   @ApiOkResponse({ type: ConsumptionSummaryDoc })
   summary(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    return this.proxy.forward('energy-monitoring-service', req, res);
+  }
+
+  @Get('estimated-cost')
+  @ApiOperation({
+    summary: 'Estimate energy consumption cost in PEN',
+    description:
+      'Forward the cost estimation request to the Energy Monitoring Service.',
+  })
+  @ApiQuery(DEVICE_FILTER)
+  @ApiQuery({
+    name: 'tariffPerKwh',
+    required: true,
+    type: Number,
+    example: 0.7,
+    description: 'Reference tariff in PEN per kWh. Must be positive.',
+  })
+  @ApiOkResponse({ type: EstimatedEnergyCostDoc })
+  @ApiBadRequestResponse({ type: ErrorResponseDto })
+  estimatedCost(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     return this.proxy.forward('energy-monitoring-service', req, res);
   }
 
