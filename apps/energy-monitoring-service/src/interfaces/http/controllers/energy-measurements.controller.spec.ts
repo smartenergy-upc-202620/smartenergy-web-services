@@ -7,6 +7,7 @@ import { GetEnergyConsumptionSummaryUseCase } from '../../../application/use-cas
 import { GetEnergyMeasurementByIdUseCase } from '../../../application/use-cases/get-energy-measurement-by-id.use-case';
 import { ListEnergyMeasurementsUseCase } from '../../../application/use-cases/list-energy-measurements.use-case';
 import { EnergyMeasurement } from '../../../domain/entities/energy-measurement.entity';
+import { GetEstimatedEnergyCostUseCase } from '../../../application/use-cases/get-estimated-energy-cost.use-case';
 import {
   ENERGY_MEASUREMENT_REPOSITORY,
   EnergyMeasurementFilter,
@@ -47,6 +48,7 @@ describe('Energy measurements HTTP API (energy-monitoring-service)', () => {
           CreateEnergyMeasurementUseCase,
           ListEnergyMeasurementsUseCase,
           GetEnergyMeasurementByIdUseCase,
+          GetEstimatedEnergyCostUseCase,
           GetEnergyConsumptionSummaryUseCase,
           {
             provide: ENERGY_MEASUREMENT_REPOSITORY,
@@ -148,4 +150,43 @@ describe('Energy measurements HTTP API (energy-monitoring-service)', () => {
     expect(missing.body.error).toBe('Not Found');
     expect(invalid.status).toBe(400);
   });
+
+  
+  it('GET /measurements/estimated-cost calculates the cost in PEN', async () => {
+    await create(
+      'us03-http-001',
+      3.75,
+      '2026-10-26T12:00:00.000Z',
+    );
+
+    await create(
+      'us03-http-001',
+      4.25,
+      '2026-10-26T13:00:00.000Z',
+    );
+
+    const res = await api.request(
+      'GET',
+      '/api/v1/measurements/estimated-cost?deviceId=us03-http-001&tariffPerKwh=0.7',
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      totalMeasurements: 2,
+      totalConsumptionKwh: 8,
+      tariffPerKwh: 0.7,
+      estimatedCost: 5.6,
+      currency: 'PEN',
+    });
+  });
+
+  it('GET /measurements/estimated-cost rejects negative tariffs', async () => {
+    const res = await api.request(
+      'GET',
+      '/api/v1/measurements/estimated-cost?tariffPerKwh=-1',
+    );
+
+    expect(res.status).toBe(400);
+  });
+
 });

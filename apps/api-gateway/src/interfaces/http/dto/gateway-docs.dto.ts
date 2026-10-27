@@ -76,6 +76,23 @@ export class ConsumptionSummaryDoc {
   averageConsumptionKwh: number;
 }
 
+export class EstimatedEnergyCostDoc {
+  @ApiProperty({ example: 2 })
+  totalMeasurements: number;
+
+  @ApiProperty({ example: 8 })
+  totalConsumptionKwh: number;
+
+  @ApiProperty({ example: 0.7 })
+  tariffPerKwh: number;
+
+  @ApiProperty({ example: 5.6 })
+  estimatedCost: number;
+
+  @ApiProperty({ enum: ['PEN'], example: 'PEN' })
+  currency: 'PEN';
+}
+
 export class CreateAlertRuleRequestDoc {
   @ApiProperty({ example: 'High consumption' })
   name: string;

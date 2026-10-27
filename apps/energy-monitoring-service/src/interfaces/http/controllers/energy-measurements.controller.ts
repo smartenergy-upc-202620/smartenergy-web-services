@@ -22,11 +22,16 @@ import { GetEnergyConsumptionSummaryUseCase } from '../../../application/use-cas
 import { GetEnergyMeasurementByIdUseCase } from '../../../application/use-cases/get-energy-measurement-by-id.use-case';
 import { ListEnergyMeasurementsUseCase } from '../../../application/use-cases/list-energy-measurements.use-case';
 import { CreateEnergyMeasurementDto } from '../dto/create-energy-measurement.dto';
+import { GetEstimatedEnergyCostUseCase } from '../../../application/use-cases/get-estimated-energy-cost.use-case';
 import { EnergyMeasurementQueryDto } from '../dto/energy-measurement-query.dto';
 import {
   EnergyConsumptionSummaryResponseDto,
   EnergyMeasurementResponseDto,
 } from '../dto/energy-measurement-response.dto';
+import {
+  EstimatedEnergyCostQueryDto,
+  EstimatedEnergyCostResponseDto,
+} from '../dto/estimated-energy-cost.dto';
 
 @ApiTags('measurements')
 @Controller('measurements')
@@ -36,7 +41,9 @@ export class EnergyMeasurementsController {
     private readonly listMeasurements: ListEnergyMeasurementsUseCase,
     private readonly getMeasurementById: GetEnergyMeasurementByIdUseCase,
     private readonly getSummary: GetEnergyConsumptionSummaryUseCase,
+    private readonly getEstimatedCost: GetEstimatedEnergyCostUseCase,
   ) {}
+
 
   @Post()
   @ApiOperation({ summary: 'Register an energy measurement' })
@@ -78,6 +85,29 @@ export class EnergyMeasurementsController {
   ): Promise<EnergyConsumptionSummaryResponseDto> {
     return this.getSummary.execute(query);
   }
+
+  
+  @Get('estimated-cost')
+  @ApiOperation({
+    summary: 'Estimate the energy cost in PEN',
+    description:
+      'Calculate the estimated energy cost using registered consumption and a reference tariff.',
+  })
+  @ApiOkResponse({
+    type: EstimatedEnergyCostResponseDto,
+  })
+  @ApiBadRequestResponse({
+    type: ErrorResponseDto,
+  })
+  estimatedCost(
+    @Query() query: EstimatedEnergyCostQueryDto,
+  ): Promise<EstimatedEnergyCostResponseDto> {
+    return this.getEstimatedCost.execute(
+      query.tariffPerKwh,
+      { deviceId: query.deviceId },
+    );
+  }
+
 
   @Get(':id')
   @ApiOperation({ summary: 'Get an energy measurement by id' })

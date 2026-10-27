@@ -1,3 +1,4 @@
+
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import {
@@ -5,16 +6,22 @@ import {
   HealthModule,
   postgresTypeOrmModule,
 } from '@app/common';
+
 import { CreateEnergyMeasurementUseCase } from './application/use-cases/create-energy-measurement.use-case';
 import { GetEnergyConsumptionSummaryUseCase } from './application/use-cases/get-energy-consumption-summary.use-case';
 import { GetEnergyMeasurementByIdUseCase } from './application/use-cases/get-energy-measurement-by-id.use-case';
+import { GetEstimatedEnergyCostUseCase } from './application/use-cases/get-estimated-energy-cost.use-case';
 import { ListEnergyMeasurementsUseCase } from './application/use-cases/list-energy-measurements.use-case';
+
 import { ENERGY_MEASUREMENT_REPOSITORY } from './domain/repositories/energy-measurement.repository';
+
 import {
   ENERGY_MONITORING_ORM_ENTITIES,
   ENERGY_MONITORING_SCHEMA,
 } from './infrastructure/persistence/typeorm/energy-monitoring.persistence';
+
 import { TypeOrmEnergyMeasurementRepository } from './infrastructure/persistence/typeorm/repositories/typeorm-energy-measurement.repository';
+
 import { EnergyMeasurementsController } from './interfaces/http/controllers/energy-measurements.controller';
 
 @Module({
@@ -33,6 +40,7 @@ import { EnergyMeasurementsController } from './interfaces/http/controllers/ener
     ListEnergyMeasurementsUseCase,
     GetEnergyMeasurementByIdUseCase,
     GetEnergyConsumptionSummaryUseCase,
+    GetEstimatedEnergyCostUseCase,
     {
       provide: ENERGY_MEASUREMENT_REPOSITORY,
       useClass: TypeOrmEnergyMeasurementRepository,
