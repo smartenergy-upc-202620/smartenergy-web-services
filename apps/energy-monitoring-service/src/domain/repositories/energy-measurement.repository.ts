@@ -2,6 +2,8 @@ import { EnergyMeasurement } from '../entities/energy-measurement.entity';
 
 export interface EnergyMeasurementFilter {
   deviceId?: string;
+  from?: Date;
+  to?: Date;
 }
 
 export interface EnergyMeasurementRepository {

@@ -28,13 +28,30 @@ class InMemoryEnergyMeasurementRepository implements EnergyMeasurementRepository
     return Promise.resolve(this.items.get(id) ?? null);
   }
 
-  findAll(filter: EnergyMeasurementFilter = {}): Promise<EnergyMeasurement[]> {
-    return Promise.resolve(
-      [...this.items.values()]
-        .filter((m) => !filter.deviceId || m.deviceId === filter.deviceId)
-        .sort((a, b) => b.measuredAt.getTime() - a.measuredAt.getTime()),
-    );
+  
+  findAll(
+    filter: EnergyMeasurementFilter = {},
+  ): Promise<EnergyMeasurement[]> {
+    const { deviceId, from, to } = filter;
+
+    const measurements = [...this.items.values()]
+      .filter((measurement) => {
+        const measuredAt = measurement.measuredAt.getTime();
+
+        return (
+          (!deviceId || measurement.deviceId === deviceId) &&
+          (!from || measuredAt >= from.getTime()) &&
+          (!to || measuredAt <= to.getTime())
+        );
+      })
+      .sort(
+        (a, b) =>
+          b.measuredAt.getTime() - a.measuredAt.getTime(),
+      );
+
+    return Promise.resolve(measurements);
   }
+
 }
 
 describe('Energy measurements HTTP API (energy-monitoring-service)', () => {
@@ -187,6 +204,111 @@ describe('Energy measurements HTTP API (energy-monitoring-service)', () => {
     );
 
     expect(res.status).toBe(400);
+  });
+
+  
+  it('US04 filters consumption history by device and date range', async () => {
+    await create(
+      'us04-history',
+      2,
+      '2026-10-03T10:00:00.000Z',
+    );
+
+    await create(
+      'us04-history',
+      4,
+      '2026-10-06T10:00:00.000Z',
+    );
+
+    await create(
+      'us04-history',
+      6,
+      '2026-10-09T10:00:00.000Z',
+    );
+
+    await create(
+      'us04-other-device',
+      20,
+      '2026-10-06T10:00:00.000Z',
+    );
+
+    const response = await api.request(
+      'GET',
+      '/api/v1/measurements?deviceId=us04-history' +
+        '&from=2026-10-05T00:00:00.000Z' +
+        '&to=2026-10-07T23:59:59.999Z',
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body).toHaveLength(1);
+    expect(response.body[0]).toMatchObject({
+      deviceId: 'us04-history',
+      consumptionKwh: 4,
+      measuredAt: '2026-10-06T10:00:00.000Z',
+    });
+  });
+
+  it('US04 rejects inverted and invalid date ranges', async () => {
+    const inverted = await api.request(
+      'GET',
+      '/api/v1/measurements' +
+        '?from=2026-10-10T00:00:00.000Z' +
+        '&to=2026-10-01T00:00:00.000Z',
+    );
+
+    expect(inverted.status).toBe(400);
+
+    const invalid = await api.request(
+      'GET',
+      '/api/v1/measurements?from=invalid-date',
+    );
+
+    expect(invalid.status).toBe(400);
+  });
+
+  it('US04 applies date filters to summary and US03 estimated cost', async () => {
+    await create(
+      'us04-summary',
+      4,
+      '2026-10-06T12:00:00.000Z',
+    );
+
+    await create(
+      'us04-summary',
+      6,
+      '2026-10-10T12:00:00.000Z',
+    );
+
+    const filters =
+      'deviceId=us04-summary' +
+      '&from=2026-10-05T00:00:00.000Z' +
+      '&to=2026-10-07T23:59:59.999Z';
+
+    const summary = await api.request(
+      'GET',
+      `/api/v1/measurements/summary?${filters}`,
+    );
+
+    expect(summary.status).toBe(200);
+    expect(summary.body).toEqual({
+      totalMeasurements: 1,
+      totalConsumptionKwh: 4,
+      averageConsumptionKwh: 4,
+    });
+
+    const cost = await api.request(
+      'GET',
+      `/api/v1/measurements/estimated-cost?tariffPerKwh=0.7&${filters}`,
+    );
+
+    expect(cost.status).toBe(200);
+    expect(cost.body).toMatchObject({
+      totalMeasurements: 1,
+      totalConsumptionKwh: 4,
+      tariffPerKwh: 0.7,
+      estimatedCost: 2.8,
+      currency: 'PEN',
+    });
   });
 
 });

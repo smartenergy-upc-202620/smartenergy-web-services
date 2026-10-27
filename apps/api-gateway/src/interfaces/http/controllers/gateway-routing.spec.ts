@@ -141,4 +141,22 @@ describe('API Gateway routing (Facade)', () => {
 
     expect(res.body).toMatchObject({ status: 'ok', service: 'api-gateway' });
   });
+  
+  it('US04 forwards device and date filters to Energy Monitoring', async () => {
+    const path =
+      '/api/v1/measurements?deviceId=device-001' +
+      '&from=2026-10-01T00:00:00.000Z' +
+      '&to=2026-10-07T23:59:59.999Z';
+
+    const response = await gateway.request('GET', path);
+
+    expect(response.status).toBe(200);
+
+    expect(response.body).toMatchObject({
+      service: 'energy-monitoring-service',
+      method: 'GET',
+      url: path,
+    });
+  });
+
 });
