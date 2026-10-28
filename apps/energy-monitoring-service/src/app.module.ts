@@ -1,4 +1,3 @@
-
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
@@ -9,6 +8,7 @@ import {
 } from '@app/common';
 
 import { CreateEnergyMeasurementUseCase } from './application/use-cases/create-energy-measurement.use-case';
+import { CompareEnergyPeriodsUseCase } from './application/use-cases/compare-energy-periods.use-case';
 
 import { GetEnergyConsumptionSummaryUseCase } from './application/use-cases/get-energy-consumption-summary.use-case';
 
@@ -42,14 +42,10 @@ import { EnergyMeasurementsController } from './interfaces/http/controllers/ener
       ENERGY_MONITORING_ORM_ENTITIES,
     ),
 
-    TypeOrmModule.forFeature(
-      ENERGY_MONITORING_ORM_ENTITIES,
-    ),
+    TypeOrmModule.forFeature(ENERGY_MONITORING_ORM_ENTITIES),
   ],
 
-  controllers: [
-    EnergyMeasurementsController,
-  ],
+  controllers: [EnergyMeasurementsController],
 
   providers: [
     CreateEnergyMeasurementUseCase,
@@ -65,6 +61,9 @@ import { EnergyMeasurementsController } from './interfaces/http/controllers/ener
 
     // US04 - Grouped consumption history
     GetGroupedEnergyHistoryUseCase,
+
+    // US05 - Period consumption comparison
+    CompareEnergyPeriodsUseCase,
 
     {
       provide: ENERGY_MEASUREMENT_REPOSITORY,

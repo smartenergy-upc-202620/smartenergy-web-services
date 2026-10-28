@@ -21,13 +21,12 @@ import {
   ConsumptionSummaryDoc,
   CreateMeasurementRequestDoc,
   EstimatedEnergyCostDoc,
+  EnergyPeriodComparisonDoc,
   GroupedEnergyHistoryDoc,
   MeasurementDoc,
 } from '../dto/gateway-docs.dto';
 
-// ============================================================
-// SHARED QUERY PARAMETERS
-// ============================================================
+// Shared query parameters
 
 const DEVICE_FILTER = {
   name: 'deviceId',
@@ -37,7 +36,6 @@ const DEVICE_FILTER = {
   description: 'Filter energy measurements by device identifier.',
 } as const;
 
-// US04 — Inclusive start date.
 const FROM_FILTER = {
   name: 'from',
   required: false,
@@ -47,7 +45,6 @@ const FROM_FILTER = {
   description: 'Start date in UTC (inclusive).',
 } as const;
 
-// US04 — Inclusive end date.
 const TO_FILTER = {
   name: 'to',
   required: false,
@@ -57,25 +54,12 @@ const TO_FILTER = {
   description: 'End date in UTC (inclusive). Must not precede from.',
 } as const;
 
-// ============================================================
-// API GATEWAY — ENERGY MONITORING ROUTES
-// ============================================================
-
-/**
- * API Gateway routes forwarded to the Energy Monitoring Service.
- *
- * The Gateway provides the public API and Swagger documentation.
- * Business logic, query validation and PostgreSQL access remain
- * in the Energy Monitoring Service.
- */
 @ApiTags('measurements')
 @Controller('measurements')
 export class EnergyRoutesController {
   constructor(private readonly proxy: DownstreamProxy) {}
 
-  // ==========================================================
-  // SPRINT 1 — REGISTER ENERGY MEASUREMENT
-  // ==========================================================
+  // Sprint 1 - Register energy measurement
 
   @Post()
   @ApiOperation({
@@ -91,13 +75,14 @@ export class EnergyRoutesController {
   @ApiBadRequestResponse({
     type: ErrorResponseDto,
   })
-  create(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+  create(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     return this.proxy.forward('energy-monitoring-service', req, res);
   }
 
-  // ==========================================================
-  // US04 — CONSUMPTION HISTORY
-  // ==========================================================
+  // US04 - Consumption history
 
   @Get()
   @ApiOperation({
@@ -117,15 +102,15 @@ export class EnergyRoutesController {
     type: ErrorResponseDto,
     description: 'Invalid query parameters or date range.',
   })
-  list(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+  list(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     return this.proxy.forward('energy-monitoring-service', req, res);
   }
 
-  // ==========================================================
-  // SPRINT 1 + US04 — ENERGY CONSUMPTION SUMMARY
-  // ==========================================================
+  // Sprint 1 + US04 - Consumption summary
 
-  // Declared before ':id' to avoid treating 'summary' as an id.
   @Get('summary')
   @ApiOperation({
     summary: 'Consumption summary (count, total, average)',
@@ -143,13 +128,14 @@ export class EnergyRoutesController {
     type: ErrorResponseDto,
     description: 'Invalid query parameters or date range.',
   })
-  summary(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+  summary(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     return this.proxy.forward('energy-monitoring-service', req, res);
   }
 
-  // ==========================================================
-  // US03 + US04 — ESTIMATED ENERGY COST
-  // ==========================================================
+  // US03 + US04 - Estimated energy cost
 
   @Get('estimated-cost')
   @ApiOperation({
@@ -183,9 +169,7 @@ export class EnergyRoutesController {
     return this.proxy.forward('energy-monitoring-service', req, res);
   }
 
-  // ==========================================================
-  // US04 - GROUPED CONSUMPTION HISTORY
-  // ==========================================================
+  // US04 - Grouped consumption history
 
   @Get('grouped-history')
   @ApiOperation({
@@ -218,9 +202,59 @@ export class EnergyRoutesController {
     return this.proxy.forward('energy-monitoring-service', req, res);
   }
 
-  // ==========================================================
-  // SPRINT 1 — FIND ENERGY MEASUREMENT BY ID
-  // ==========================================================
+  // US05 - Compare energy consumption between periods
+
+  @Get('compare-periods')
+  @ApiOperation({
+    summary: 'Compare energy consumption between periods (US05)',
+    description:
+      'Compare two UTC intervals for one device. The Energy Monitoring Service ' +
+      'validates dates and computes the comparison.',
+  })
+  @ApiQuery({
+    name: 'deviceId',
+    required: true,
+    type: String,
+    example: 'device-001',
+  })
+  @ApiQuery({
+    name: 'baselineFrom',
+    required: true,
+    type: String,
+    example: '2026-10-01T00:00:00.000Z',
+  })
+  @ApiQuery({
+    name: 'baselineTo',
+    required: true,
+    type: String,
+    example: '2026-10-07T23:59:59.999Z',
+  })
+  @ApiQuery({
+    name: 'comparisonFrom',
+    required: true,
+    type: String,
+    example: '2026-10-08T00:00:00.000Z',
+  })
+  @ApiQuery({
+    name: 'comparisonTo',
+    required: true,
+    type: String,
+    example: '2026-10-14T23:59:59.999Z',
+  })
+  @ApiOkResponse({
+    type: EnergyPeriodComparisonDoc,
+  })
+  @ApiBadRequestResponse({
+    type: ErrorResponseDto,
+  })
+  comparePeriods(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    return this.proxy.forward('energy-monitoring-service', req, res);
+  }
+
+  // Sprint 1 - Find measurement by UUID
 
   @Get(':id')
   @ApiOperation({
@@ -240,7 +274,10 @@ export class EnergyRoutesController {
   @ApiNotFoundResponse({
     type: ErrorResponseDto,
   })
-  findOne(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+  findOne(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     return this.proxy.forward('energy-monitoring-service', req, res);
   }
 }
