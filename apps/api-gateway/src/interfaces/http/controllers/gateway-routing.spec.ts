@@ -83,7 +83,11 @@ describe('API Gateway routing (Facade)', () => {
     ['POST', '/api/v1/measurements', 'energy-monitoring-service'],
     ['GET', '/api/v1/measurements', 'energy-monitoring-service'],
     ['GET', '/api/v1/measurements/summary', 'energy-monitoring-service'],
-    ['GET', '/api/v1/measurements/estimated-cost?deviceId=device-001&tariffPerKwh=0.7', 'energy-monitoring-service'],
+    [
+      'GET',
+      '/api/v1/measurements/estimated-cost?deviceId=device-001&tariffPerKwh=0.7',
+      'energy-monitoring-service',
+    ],
     ['GET', `/api/v1/measurements/${id}`, 'energy-monitoring-service'],
     ['POST', '/api/v1/alert-rules', 'alert-service'],
     ['GET', '/api/v1/alert-rules', 'alert-service'],
@@ -140,5 +144,41 @@ describe('API Gateway routing (Facade)', () => {
     const res = await gateway.request('GET', '/api/v1/health');
 
     expect(res.body).toMatchObject({ status: 'ok', service: 'api-gateway' });
+  });
+
+  it('US04 forwards device and date filters to Energy Monitoring', async () => {
+    const path =
+      '/api/v1/measurements?deviceId=device-001' +
+      '&from=2026-10-01T00:00:00.000Z' +
+      '&to=2026-10-07T23:59:59.999Z';
+
+    const response = await gateway.request('GET', path);
+
+    expect(response.status).toBe(200);
+
+    expect(response.body).toMatchObject({
+      service: 'energy-monitoring-service',
+      method: 'GET',
+      url: path,
+    });
+  });
+
+  it('US04 forwards grouped history parameters to Energy Monitoring', async () => {
+    const path =
+      '/api/v1/measurements/grouped-history' +
+      '?granularity=day' +
+      '&deviceId=device-001' +
+      '&from=2026-10-01T00:00:00.000Z' +
+      '&to=2026-10-31T23:59:59.999Z';
+
+    const response = await gateway.request('GET', path);
+
+    expect(response.status).toBe(200);
+
+    expect(response.body).toMatchObject({
+      service: 'energy-monitoring-service',
+      method: 'GET',
+      url: path,
+    });
   });
 });

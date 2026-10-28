@@ -1,6 +1,7 @@
 
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+
 import {
   AppConfigModule,
   HealthModule,
@@ -8,9 +9,15 @@ import {
 } from '@app/common';
 
 import { CreateEnergyMeasurementUseCase } from './application/use-cases/create-energy-measurement.use-case';
+
 import { GetEnergyConsumptionSummaryUseCase } from './application/use-cases/get-energy-consumption-summary.use-case';
+
 import { GetEnergyMeasurementByIdUseCase } from './application/use-cases/get-energy-measurement-by-id.use-case';
+
 import { GetEstimatedEnergyCostUseCase } from './application/use-cases/get-estimated-energy-cost.use-case';
+
+import { GetGroupedEnergyHistoryUseCase } from './application/use-cases/get-grouped-energy-history.use-case';
+
 import { ListEnergyMeasurementsUseCase } from './application/use-cases/list-energy-measurements.use-case';
 
 import { ENERGY_MEASUREMENT_REPOSITORY } from './domain/repositories/energy-measurement.repository';
@@ -27,20 +34,38 @@ import { EnergyMeasurementsController } from './interfaces/http/controllers/ener
 @Module({
   imports: [
     AppConfigModule,
+
     HealthModule.register('energy-monitoring-service'),
+
     postgresTypeOrmModule(
       ENERGY_MONITORING_SCHEMA,
       ENERGY_MONITORING_ORM_ENTITIES,
     ),
-    TypeOrmModule.forFeature(ENERGY_MONITORING_ORM_ENTITIES),
+
+    TypeOrmModule.forFeature(
+      ENERGY_MONITORING_ORM_ENTITIES,
+    ),
   ],
-  controllers: [EnergyMeasurementsController],
+
+  controllers: [
+    EnergyMeasurementsController,
+  ],
+
   providers: [
     CreateEnergyMeasurementUseCase,
+
     ListEnergyMeasurementsUseCase,
+
     GetEnergyMeasurementByIdUseCase,
+
     GetEnergyConsumptionSummaryUseCase,
+
+    // US03 - Estimated energy cost
     GetEstimatedEnergyCostUseCase,
+
+    // US04 - Grouped consumption history
+    GetGroupedEnergyHistoryUseCase,
+
     {
       provide: ENERGY_MEASUREMENT_REPOSITORY,
       useClass: TypeOrmEnergyMeasurementRepository,

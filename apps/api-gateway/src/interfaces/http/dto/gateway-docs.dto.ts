@@ -93,6 +93,49 @@ export class EstimatedEnergyCostDoc {
   currency: 'PEN';
 }
 
+
+export class GroupedEnergyHistoryPeriodDoc {
+  @ApiProperty({
+    example: '2026-10-26',
+    description:
+      'Day: YYYY-MM-DD; week: Monday date; month: YYYY-MM.',
+  })
+  period: string;
+
+  @ApiProperty({ example: 2 })
+  totalMeasurements: number;
+
+  @ApiProperty({ example: 8 })
+  totalConsumptionKwh: number;
+}
+
+export class GroupedEnergyHistoryDoc {
+  @ApiProperty({
+    enum: ['day', 'week', 'month'],
+    example: 'day',
+  })
+  granularity: 'day' | 'week' | 'month';
+
+  @ApiProperty({ example: 3 })
+  totalMeasurements: number;
+
+  @ApiProperty({ example: 12 })
+  totalConsumptionKwh: number;
+
+  @ApiProperty({
+    example: true,
+    description:
+      'Whether matching measurements were found.',
+  })
+  hasData: boolean;
+
+  @ApiProperty({
+    type: GroupedEnergyHistoryPeriodDoc,
+    isArray: true,
+  })
+  periods: GroupedEnergyHistoryPeriodDoc[];
+}
+
 export class CreateAlertRuleRequestDoc {
   @ApiProperty({ example: 'High consumption' })
   name: string;
