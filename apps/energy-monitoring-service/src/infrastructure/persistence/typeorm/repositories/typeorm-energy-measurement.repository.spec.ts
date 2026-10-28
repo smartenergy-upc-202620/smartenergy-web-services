@@ -1,13 +1,7 @@
 import { EnergyMeasurement } from '../../../../domain/entities/energy-measurement.entity';
 import { EnergyMeasurementOrmEntity } from '../entities/energy-measurement.orm-entity';
 import { TypeOrmEnergyMeasurementRepository } from './typeorm-energy-measurement.repository';
-import {
-  Between,
-  LessThanOrEqual,
-  MoreThanOrEqual,
-  Repository,
-} from 'typeorm';
-
+import { Between, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
 
 describe('TypeOrmEnergyMeasurementRepository', () => {
   const row: EnergyMeasurementOrmEntity = {
@@ -62,7 +56,6 @@ describe('TypeOrmEnergyMeasurementRepository', () => {
     });
   });
 
-  
   it('US04 filters measurements by device and date range', async () => {
     const from = new Date('2026-10-01T00:00:00.000Z');
     const to = new Date('2026-10-07T23:59:59.999Z');
@@ -103,6 +96,4 @@ describe('TypeOrmEnergyMeasurementRepository', () => {
       order: { measuredAt: 'DESC' },
     });
   });
-
-
 });

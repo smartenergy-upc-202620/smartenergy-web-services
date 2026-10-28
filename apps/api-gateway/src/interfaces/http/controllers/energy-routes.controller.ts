@@ -21,6 +21,7 @@ import {
   ConsumptionSummaryDoc,
   CreateMeasurementRequestDoc,
   EstimatedEnergyCostDoc,
+  GroupedEnergyHistoryDoc,
   MeasurementDoc,
 } from '../dto/gateway-docs.dto';
 
@@ -70,9 +71,7 @@ const TO_FILTER = {
 @ApiTags('measurements')
 @Controller('measurements')
 export class EnergyRoutesController {
-  constructor(
-    private readonly proxy: DownstreamProxy,
-  ) {}
+  constructor(private readonly proxy: DownstreamProxy) {}
 
   // ==========================================================
   // SPRINT 1 — REGISTER ENERGY MEASUREMENT
@@ -81,8 +80,7 @@ export class EnergyRoutesController {
   @Post()
   @ApiOperation({
     summary: 'Register an energy measurement',
-    description:
-      'Register an energy consumption measurement for a device.',
+    description: 'Register an energy consumption measurement for a device.',
   })
   @ApiBody({
     type: CreateMeasurementRequestDoc,
@@ -93,15 +91,8 @@ export class EnergyRoutesController {
   @ApiBadRequestResponse({
     type: ErrorResponseDto,
   })
-  create(
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    return this.proxy.forward(
-      'energy-monitoring-service',
-      req,
-      res,
-    );
+  create(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    return this.proxy.forward('energy-monitoring-service', req, res);
   }
 
   // ==========================================================
@@ -126,15 +117,8 @@ export class EnergyRoutesController {
     type: ErrorResponseDto,
     description: 'Invalid query parameters or date range.',
   })
-  list(
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    return this.proxy.forward(
-      'energy-monitoring-service',
-      req,
-      res,
-    );
+  list(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    return this.proxy.forward('energy-monitoring-service', req, res);
   }
 
   // ==========================================================
@@ -159,15 +143,8 @@ export class EnergyRoutesController {
     type: ErrorResponseDto,
     description: 'Invalid query parameters or date range.',
   })
-  summary(
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    return this.proxy.forward(
-      'energy-monitoring-service',
-      req,
-      res,
-    );
+  summary(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    return this.proxy.forward('energy-monitoring-service', req, res);
   }
 
   // ==========================================================
@@ -190,8 +167,7 @@ export class EnergyRoutesController {
     required: true,
     type: Number,
     example: 0.7,
-    description:
-      'Reference energy tariff in PEN per kWh. Must be positive.',
+    description: 'Reference energy tariff in PEN per kWh. Must be positive.',
   })
   @ApiOkResponse({
     type: EstimatedEnergyCostDoc,
@@ -204,11 +180,42 @@ export class EnergyRoutesController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    return this.proxy.forward(
-      'energy-monitoring-service',
-      req,
-      res,
-    );
+    return this.proxy.forward('energy-monitoring-service', req, res);
+  }
+
+  // ==========================================================
+  // US04 - GROUPED CONSUMPTION HISTORY
+  // ==========================================================
+
+  @Get('grouped-history')
+  @ApiOperation({
+    summary: 'Get grouped energy consumption history',
+    description:
+      'Retrieve energy consumption grouped by day, week or month. ' +
+      'Supports optional device and UTC date filters.',
+  })
+  @ApiQuery(DEVICE_FILTER)
+  @ApiQuery(FROM_FILTER)
+  @ApiQuery(TO_FILTER)
+  @ApiQuery({
+    name: 'granularity',
+    required: true,
+    enum: ['day', 'week', 'month'],
+    example: 'day',
+    description: 'Grouping period. Weeks begin on Monday (UTC).',
+  })
+  @ApiOkResponse({
+    type: GroupedEnergyHistoryDoc,
+  })
+  @ApiBadRequestResponse({
+    type: ErrorResponseDto,
+    description: 'Invalid granularity or date range.',
+  })
+  groupedHistory(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    return this.proxy.forward('energy-monitoring-service', req, res);
   }
 
   // ==========================================================
@@ -218,8 +225,7 @@ export class EnergyRoutesController {
   @Get(':id')
   @ApiOperation({
     summary: 'Get an energy measurement by id',
-    description:
-      'Retrieve a specific energy measurement using its UUID.',
+    description: 'Retrieve a specific energy measurement using its UUID.',
   })
   @ApiParam({
     name: 'id',
@@ -234,14 +240,7 @@ export class EnergyRoutesController {
   @ApiNotFoundResponse({
     type: ErrorResponseDto,
   })
-  findOne(
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    return this.proxy.forward(
-      'energy-monitoring-service',
-      req,
-      res,
-    );
+  findOne(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    return this.proxy.forward('energy-monitoring-service', req, res);
   }
 }

@@ -1,3 +1,4 @@
+
 import {
   BadRequestException,
   Body,
@@ -25,6 +26,7 @@ import { CreateEnergyMeasurementUseCase } from '../../../application/use-cases/c
 import { GetEnergyConsumptionSummaryUseCase } from '../../../application/use-cases/get-energy-consumption-summary.use-case';
 import { GetEnergyMeasurementByIdUseCase } from '../../../application/use-cases/get-energy-measurement-by-id.use-case';
 import { GetEstimatedEnergyCostUseCase } from '../../../application/use-cases/get-estimated-energy-cost.use-case';
+import { GetGroupedEnergyHistoryUseCase } from '../../../application/use-cases/get-grouped-energy-history.use-case';
 import { ListEnergyMeasurementsUseCase } from '../../../application/use-cases/list-energy-measurements.use-case';
 
 import { EnergyMeasurementFilter } from '../../../domain/repositories/energy-measurement.repository';
@@ -42,6 +44,11 @@ import {
   EstimatedEnergyCostResponseDto,
 } from '../dto/estimated-energy-cost.dto';
 
+import {
+  GroupedEnergyHistoryQueryDto,
+  GroupedEnergyHistoryResponseDto,
+} from '../dto/grouped-energy-history.dto';
+
 @ApiTags('measurements')
 @Controller('measurements')
 export class EnergyMeasurementsController {
@@ -51,11 +58,10 @@ export class EnergyMeasurementsController {
     private readonly getMeasurementById: GetEnergyMeasurementByIdUseCase,
     private readonly getSummary: GetEnergyConsumptionSummaryUseCase,
     private readonly getEstimatedCost: GetEstimatedEnergyCostUseCase,
+    private readonly getGroupedHistory: GetGroupedEnergyHistoryUseCase,
   ) {}
 
-  // ============================================================
-  // SPRINT 1 — REGISTER ENERGY MEASUREMENTS
-  // ============================================================
+  // Sprint 1 - Register an energy measurement
 
   @Post()
   @ApiOperation({
@@ -79,15 +85,13 @@ export class EnergyMeasurementsController {
     return EnergyMeasurementResponseDto.fromDomain(measurement);
   }
 
-  // ============================================================
-  // US04 — CONSUMPTION HISTORY WITH DATE FILTERS
-  // ============================================================
+  // US04 - List measurements with date filters
 
   @Get()
   @ApiOperation({
     summary: 'List energy measurements, most recent first',
     description:
-      'Retrieve energy measurement history filtered by deviceId, from and to. Date boundaries are inclusive.',
+      'Retrieve measurements filtered by deviceId, from and to.',
   })
   @ApiOkResponse({
     type: EnergyMeasurementResponseDto,
@@ -101,25 +105,19 @@ export class EnergyMeasurementsController {
   ): Promise<EnergyMeasurementResponseDto[]> {
     const filter = this.validatedFilter(query);
 
-    const measurements = await this.listMeasurements.execute(
-      filter,
-    );
+    const measurements =
+      await this.listMeasurements.execute(filter);
 
     return measurements.map((measurement) =>
       EnergyMeasurementResponseDto.fromDomain(measurement),
     );
   }
 
-  // ============================================================
-  // SPRINT 1 + US04 — CONSUMPTION SUMMARY
-  // ============================================================
+  // Sprint 1 + US04 - Consumption summary
 
-  // Declared before ':id' so 'summary' is not captured as an id.
   @Get('summary')
   @ApiOperation({
     summary: 'Get a basic consumption summary (count, total and average)',
-    description:
-      'Summarize energy consumption with optional device and date filters.',
   })
   @ApiOkResponse({
     type: EnergyConsumptionSummaryResponseDto,
@@ -130,21 +128,18 @@ export class EnergyMeasurementsController {
   summary(
     @Query() query: EnergyMeasurementQueryDto,
   ): Promise<EnergyConsumptionSummaryResponseDto> {
-    const filter = this.validatedFilter(query);
-
-    return this.getSummary.execute(filter);
+    return this.getSummary.execute(
+      this.validatedFilter(query),
+    );
   }
 
-  // ============================================================
-  // US03 + US04 — ESTIMATED ENERGY COST
-  // ============================================================
+  // US03 + US04 - Estimated energy cost
 
-  // Declared before ':id' to prevent route conflicts.
   @Get('estimated-cost')
   @ApiOperation({
     summary: 'Estimate the energy cost in PEN',
     description:
-      'Calculate estimated energy cost using registered consumption, a reference tariff and optional date filters.',
+      'Calculate estimated energy cost using registered measurements and a reference tariff.',
   })
   @ApiOkResponse({
     type: EstimatedEnergyCostResponseDto,
@@ -155,17 +150,36 @@ export class EnergyMeasurementsController {
   estimatedCost(
     @Query() query: EstimatedEnergyCostQueryDto,
   ): Promise<EstimatedEnergyCostResponseDto> {
-    const filter = this.validatedFilter(query);
-
     return this.getEstimatedCost.execute(
       query.tariffPerKwh,
-      filter,
+      this.validatedFilter(query),
     );
   }
 
-  // ============================================================
-  // SPRINT 1 — GET MEASUREMENT BY ID
-  // ============================================================
+  // US04 - Grouped consumption history
+
+  @Get('grouped-history')
+  @ApiOperation({
+    summary: 'Get grouped energy consumption history',
+    description:
+      'Group energy measurements by day, week or month. Supports deviceId, from and to filters. Weeks start on Monday in UTC.',
+  })
+  @ApiOkResponse({
+    type: GroupedEnergyHistoryResponseDto,
+  })
+  @ApiBadRequestResponse({
+    type: ErrorResponseDto,
+  })
+  groupedHistory(
+    @Query() query: GroupedEnergyHistoryQueryDto,
+  ): Promise<GroupedEnergyHistoryResponseDto> {
+    return this.getGroupedHistory.execute(
+      query.granularity,
+      this.validatedFilter(query),
+    );
+  }
+
+  // Sprint 1 - Find measurement by UUID
 
   @Get(':id')
   @ApiOperation({
@@ -193,9 +207,7 @@ export class EnergyMeasurementsController {
     );
   }
 
-  // ============================================================
-  // US04 — DATE RANGE VALIDATION
-  // ============================================================
+  // US04 - Shared date range validation
 
   private validatedFilter(
     query: EnergyMeasurementQueryDto,
@@ -214,11 +226,9 @@ export class EnergyMeasurementsController {
       ...(query.deviceId
         ? { deviceId: query.deviceId }
         : {}),
-
       ...(query.from
         ? { from: query.from }
         : {}),
-
       ...(query.to
         ? { to: query.to }
         : {}),
