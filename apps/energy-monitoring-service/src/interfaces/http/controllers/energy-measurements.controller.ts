@@ -1,4 +1,3 @@
-
 import {
   BadRequestException,
   Body,
@@ -23,6 +22,7 @@ import {
 import { ErrorResponseDto } from '@app/common';
 
 import { CreateEnergyMeasurementUseCase } from '../../../application/use-cases/create-energy-measurement.use-case';
+import { CompareEnergyPeriodsUseCase } from '../../../application/use-cases/compare-energy-periods.use-case';
 import { GetEnergyConsumptionSummaryUseCase } from '../../../application/use-cases/get-energy-consumption-summary.use-case';
 import { GetEnergyMeasurementByIdUseCase } from '../../../application/use-cases/get-energy-measurement-by-id.use-case';
 import { GetEstimatedEnergyCostUseCase } from '../../../application/use-cases/get-estimated-energy-cost.use-case';
@@ -32,6 +32,12 @@ import { ListEnergyMeasurementsUseCase } from '../../../application/use-cases/li
 import { EnergyMeasurementFilter } from '../../../domain/repositories/energy-measurement.repository';
 
 import { CreateEnergyMeasurementDto } from '../dto/create-energy-measurement.dto';
+
+import {
+  CompareEnergyPeriodsQueryDto,
+  CompareEnergyPeriodsResponseDto,
+} from '../dto/compare-energy-periods.dto';
+
 import { EnergyMeasurementQueryDto } from '../dto/energy-measurement-query.dto';
 
 import {
@@ -59,6 +65,7 @@ export class EnergyMeasurementsController {
     private readonly getSummary: GetEnergyConsumptionSummaryUseCase,
     private readonly getEstimatedCost: GetEstimatedEnergyCostUseCase,
     private readonly getGroupedHistory: GetGroupedEnergyHistoryUseCase,
+    private readonly comparePeriodsUseCase: CompareEnergyPeriodsUseCase,
   ) {}
 
   // Sprint 1 - Register an energy measurement
@@ -90,8 +97,7 @@ export class EnergyMeasurementsController {
   @Get()
   @ApiOperation({
     summary: 'List energy measurements, most recent first',
-    description:
-      'Retrieve measurements filtered by deviceId, from and to.',
+    description: 'Retrieve measurements filtered by deviceId, from and to.',
   })
   @ApiOkResponse({
     type: EnergyMeasurementResponseDto,
@@ -105,8 +111,7 @@ export class EnergyMeasurementsController {
   ): Promise<EnergyMeasurementResponseDto[]> {
     const filter = this.validatedFilter(query);
 
-    const measurements =
-      await this.listMeasurements.execute(filter);
+    const measurements = await this.listMeasurements.execute(filter);
 
     return measurements.map((measurement) =>
       EnergyMeasurementResponseDto.fromDomain(measurement),
@@ -128,9 +133,7 @@ export class EnergyMeasurementsController {
   summary(
     @Query() query: EnergyMeasurementQueryDto,
   ): Promise<EnergyConsumptionSummaryResponseDto> {
-    return this.getSummary.execute(
-      this.validatedFilter(query),
-    );
+    return this.getSummary.execute(this.validatedFilter(query));
   }
 
   // US03 + US04 - Estimated energy cost
@@ -179,6 +182,33 @@ export class EnergyMeasurementsController {
     );
   }
 
+  // US05 - Compare two ordered, non-overlapping periods
+
+  @Get('compare-periods')
+  @ApiOperation({
+    summary: 'Compare energy consumption between two periods (US05)',
+    description:
+      'Compare two UTC date ranges for one device. ' +
+      'Null consumption means no measurements; null percentage means undefined.',
+  })
+  @ApiOkResponse({
+    type: CompareEnergyPeriodsResponseDto,
+  })
+  @ApiBadRequestResponse({
+    type: ErrorResponseDto,
+  })
+  comparePeriods(
+    @Query() query: CompareEnergyPeriodsQueryDto,
+  ): Promise<CompareEnergyPeriodsResponseDto> {
+    return this.comparePeriodsUseCase.execute({
+      deviceId: query.deviceId,
+      baselineFrom: new Date(query.baselineFrom),
+      baselineTo: new Date(query.baselineTo),
+      comparisonFrom: new Date(query.comparisonFrom),
+      comparisonTo: new Date(query.comparisonTo),
+    });
+  }
+
   // Sprint 1 - Find measurement by UUID
 
   @Get(':id')
@@ -212,26 +242,16 @@ export class EnergyMeasurementsController {
   private validatedFilter(
     query: EnergyMeasurementQueryDto,
   ): EnergyMeasurementFilter {
-    if (
-      query.from &&
-      query.to &&
-      query.from.getTime() > query.to.getTime()
-    ) {
+    if (query.from && query.to && query.from.getTime() > query.to.getTime()) {
       throw new BadRequestException(
         'The start date must not be after the end date',
       );
     }
 
     return {
-      ...(query.deviceId
-        ? { deviceId: query.deviceId }
-        : {}),
-      ...(query.from
-        ? { from: query.from }
-        : {}),
-      ...(query.to
-        ? { to: query.to }
-        : {}),
+      ...(query.deviceId ? { deviceId: query.deviceId } : {}),
+      ...(query.from ? { from: query.from } : {}),
+      ...(query.to ? { to: query.to } : {}),
     };
   }
 }

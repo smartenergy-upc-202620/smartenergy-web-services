@@ -2,22 +2,29 @@ import {
   HttpTestApp,
   startHttpTestApp,
 } from '../../../../../../test/support/http-test-app';
+
 import { CreateEnergyMeasurementUseCase } from '../../../application/use-cases/create-energy-measurement.use-case';
+import { CompareEnergyPeriodsUseCase } from '../../../application/use-cases/compare-energy-periods.use-case';
 import { GetEnergyConsumptionSummaryUseCase } from '../../../application/use-cases/get-energy-consumption-summary.use-case';
 import { GetEnergyMeasurementByIdUseCase } from '../../../application/use-cases/get-energy-measurement-by-id.use-case';
 import { ListEnergyMeasurementsUseCase } from '../../../application/use-cases/list-energy-measurements.use-case';
-import { EnergyMeasurement } from '../../../domain/entities/energy-measurement.entity';
 import { GetEstimatedEnergyCostUseCase } from '../../../application/use-cases/get-estimated-energy-cost.use-case';
+import { GetGroupedEnergyHistoryUseCase } from '../../../application/use-cases/get-grouped-energy-history.use-case';
+
+import { EnergyMeasurement } from '../../../domain/entities/energy-measurement.entity';
+
 import {
   ENERGY_MEASUREMENT_REPOSITORY,
   EnergyMeasurementFilter,
   EnergyMeasurementRepository,
 } from '../../../domain/repositories/energy-measurement.repository';
+
 import { ENERGY_ERROR_STATUSES } from '../error-statuses';
 import { EnergyMeasurementsController } from './energy-measurements.controller';
-import { GetGroupedEnergyHistoryUseCase } from '../../../application/use-cases/get-grouped-energy-history.use-case';
 
-class InMemoryEnergyMeasurementRepository implements EnergyMeasurementRepository {
+class InMemoryEnergyMeasurementRepository
+  implements EnergyMeasurementRepository
+{
   private readonly items = new Map<string, EnergyMeasurement>();
 
   save(measurement: EnergyMeasurement): Promise<void> {
@@ -29,7 +36,9 @@ class InMemoryEnergyMeasurementRepository implements EnergyMeasurementRepository
     return Promise.resolve(this.items.get(id) ?? null);
   }
 
-  findAll(filter: EnergyMeasurementFilter = {}): Promise<EnergyMeasurement[]> {
+  findAll(
+    filter: EnergyMeasurementFilter = {},
+  ): Promise<EnergyMeasurement[]> {
     const { deviceId, from, to } = filter;
 
     const measurements = [...this.items.values()]
@@ -42,7 +51,10 @@ class InMemoryEnergyMeasurementRepository implements EnergyMeasurementRepository
           (!to || measuredAt <= to.getTime())
         );
       })
-      .sort((a, b) => b.measuredAt.getTime() - a.measuredAt.getTime());
+      .sort(
+        (a, b) =>
+          b.measuredAt.getTime() - a.measuredAt.getTime(),
+      );
 
     return Promise.resolve(measurements);
   }
@@ -62,6 +74,7 @@ describe('Energy measurements HTTP API (energy-monitoring-service)', () => {
           GetEstimatedEnergyCostUseCase,
           GetEnergyConsumptionSummaryUseCase,
           GetGroupedEnergyHistoryUseCase,
+          CompareEnergyPeriodsUseCase,
           {
             provide: ENERGY_MEASUREMENT_REPOSITORY,
             useValue: new InMemoryEnergyMeasurementRepository(),
@@ -74,15 +87,28 @@ describe('Energy measurements HTTP API (energy-monitoring-service)', () => {
 
   afterAll(() => api.close());
 
-  const create = (deviceId: string, consumptionKwh: number, at: string) =>
+  const create = (
+    deviceId: string,
+    consumptionKwh: number,
+    at: string,
+  ) =>
     api.request('POST', '/api/v1/measurements', {
-      body: { deviceId, consumptionKwh, measuredAt: at },
+      body: {
+        deviceId,
+        consumptionKwh,
+        measuredAt: at,
+      },
     });
 
   it('POST /measurements registers a measurement with a backend id', async () => {
-    const res = await create('device-001', 3.75, '2026-10-06T10:30:00.000Z');
+    const res = await create(
+      'device-001',
+      3.75,
+      '2026-10-06T10:30:00.000Z',
+    );
 
     expect(res.status).toBe(201);
+
     expect(res.body).toEqual({
       id: expect.stringMatching(/^[0-9a-f-]{36}$/),
       deviceId: 'device-001',
@@ -92,31 +118,51 @@ describe('Energy measurements HTTP API (energy-monitoring-service)', () => {
   });
 
   it('POST /measurements returns 400 for invalid data', async () => {
-    const res = await api.request('POST', '/api/v1/measurements', {
-      body: { deviceId: '', consumptionKwh: -1, measuredAt: 'yesterday' },
-    });
+    const res = await api.request(
+      'POST',
+      '/api/v1/measurements',
+      {
+        body: {
+          deviceId: '',
+          consumptionKwh: -1,
+          measuredAt: 'yesterday',
+        },
+      },
+    );
 
     expect(res.status).toBe(400);
     expect(res.body.message).toHaveLength(3);
   });
 
   it('POST /measurements rejects unknown fields', async () => {
-    const res = await api.request('POST', '/api/v1/measurements', {
-      body: {
-        id: 'client-id',
-        deviceId: 'd',
-        consumptionKwh: 1,
-        measuredAt: '2026-10-06T10:30:00.000Z',
+    const res = await api.request(
+      'POST',
+      '/api/v1/measurements',
+      {
+        body: {
+          id: 'client-id',
+          deviceId: 'd',
+          consumptionKwh: 1,
+          measuredAt: '2026-10-06T10:30:00.000Z',
+        },
       },
-    });
+    );
 
     expect(res.status).toBe(400);
   });
 
   it('GET /measurements lists and filters by deviceId', async () => {
-    await create('device-002', 6.25, '2026-10-06T11:00:00.000Z');
+    await create(
+      'device-002',
+      6.25,
+      '2026-10-06T11:00:00.000Z',
+    );
 
-    const all = await api.request('GET', '/api/v1/measurements');
+    const all = await api.request(
+      'GET',
+      '/api/v1/measurements',
+    );
+
     const filtered = await api.request(
       'GET',
       '/api/v1/measurements?deviceId=device-002',
@@ -129,9 +175,13 @@ describe('Energy measurements HTTP API (energy-monitoring-service)', () => {
   });
 
   it('GET /measurements/summary is not captured by /:id', async () => {
-    const res = await api.request('GET', '/api/v1/measurements/summary');
+    const res = await api.request(
+      'GET',
+      '/api/v1/measurements/summary',
+    );
 
     expect(res.status).toBe(200);
+
     expect(res.body).toEqual({
       totalMeasurements: 2,
       totalConsumptionKwh: 10,
@@ -140,7 +190,11 @@ describe('Energy measurements HTTP API (energy-monitoring-service)', () => {
   });
 
   it('GET /measurements/:id returns the measurement', async () => {
-    const created = await create('device-003', 1, '2026-10-06T12:00:00.000Z');
+    const created = await create(
+      'device-003',
+      1,
+      '2026-10-06T12:00:00.000Z',
+    );
 
     const res = await api.request(
       'GET',
@@ -156,7 +210,11 @@ describe('Energy measurements HTTP API (energy-monitoring-service)', () => {
       'GET',
       '/api/v1/measurements/00000000-0000-4000-8000-000000000000',
     );
-    const invalid = await api.request('GET', '/api/v1/measurements/abc');
+
+    const invalid = await api.request(
+      'GET',
+      '/api/v1/measurements/abc',
+    );
 
     expect(missing.status).toBe(404);
     expect(missing.body.error).toBe('Not Found');
@@ -164,9 +222,17 @@ describe('Energy measurements HTTP API (energy-monitoring-service)', () => {
   });
 
   it('GET /measurements/estimated-cost calculates the cost in PEN', async () => {
-    await create('us03-http-001', 3.75, '2026-10-26T12:00:00.000Z');
+    await create(
+      'us03-http-001',
+      3.75,
+      '2026-10-26T12:00:00.000Z',
+    );
 
-    await create('us03-http-001', 4.25, '2026-10-26T13:00:00.000Z');
+    await create(
+      'us03-http-001',
+      4.25,
+      '2026-10-26T13:00:00.000Z',
+    );
 
     const res = await api.request(
       'GET',
@@ -174,6 +240,7 @@ describe('Energy measurements HTTP API (energy-monitoring-service)', () => {
     );
 
     expect(res.status).toBe(200);
+
     expect(res.body).toEqual({
       totalMeasurements: 2,
       totalConsumptionKwh: 8,
@@ -193,13 +260,29 @@ describe('Energy measurements HTTP API (energy-monitoring-service)', () => {
   });
 
   it('US04 filters consumption history by device and date range', async () => {
-    await create('us04-history', 2, '2026-10-03T10:00:00.000Z');
+    await create(
+      'us04-history',
+      2,
+      '2026-10-03T10:00:00.000Z',
+    );
 
-    await create('us04-history', 4, '2026-10-06T10:00:00.000Z');
+    await create(
+      'us04-history',
+      4,
+      '2026-10-06T10:00:00.000Z',
+    );
 
-    await create('us04-history', 6, '2026-10-09T10:00:00.000Z');
+    await create(
+      'us04-history',
+      6,
+      '2026-10-09T10:00:00.000Z',
+    );
 
-    await create('us04-other-device', 20, '2026-10-06T10:00:00.000Z');
+    await create(
+      'us04-other-device',
+      20,
+      '2026-10-06T10:00:00.000Z',
+    );
 
     const response = await api.request(
       'GET',
@@ -210,6 +293,7 @@ describe('Energy measurements HTTP API (energy-monitoring-service)', () => {
 
     expect(response.status).toBe(200);
     expect(response.body).toHaveLength(1);
+
     expect(response.body[0]).toMatchObject({
       deviceId: 'us04-history',
       consumptionKwh: 4,
@@ -236,9 +320,17 @@ describe('Energy measurements HTTP API (energy-monitoring-service)', () => {
   });
 
   it('US04 applies date filters to summary and US03 estimated cost', async () => {
-    await create('us04-summary', 4, '2026-10-06T12:00:00.000Z');
+    await create(
+      'us04-summary',
+      4,
+      '2026-10-06T12:00:00.000Z',
+    );
 
-    await create('us04-summary', 6, '2026-10-10T12:00:00.000Z');
+    await create(
+      'us04-summary',
+      6,
+      '2026-10-10T12:00:00.000Z',
+    );
 
     const filters =
       'deviceId=us04-summary' +
@@ -251,6 +343,7 @@ describe('Energy measurements HTTP API (energy-monitoring-service)', () => {
     );
 
     expect(summary.status).toBe(200);
+
     expect(summary.body).toEqual({
       totalMeasurements: 1,
       totalConsumptionKwh: 4,
@@ -263,6 +356,7 @@ describe('Energy measurements HTTP API (energy-monitoring-service)', () => {
     );
 
     expect(cost.status).toBe(200);
+
     expect(cost.body).toMatchObject({
       totalMeasurements: 1,
       totalConsumptionKwh: 4,
@@ -273,11 +367,23 @@ describe('Energy measurements HTTP API (energy-monitoring-service)', () => {
   });
 
   it('US04 GET /measurements/grouped-history groups by day', async () => {
-    await create('us04-grouped-http', 3.75, '2026-10-26T10:00:00.000Z');
+    await create(
+      'us04-grouped-http',
+      3.75,
+      '2026-10-26T10:00:00.000Z',
+    );
 
-    await create('us04-grouped-http', 4.25, '2026-10-26T15:00:00.000Z');
+    await create(
+      'us04-grouped-http',
+      4.25,
+      '2026-10-26T15:00:00.000Z',
+    );
 
-    await create('us04-grouped-http', 4, '2026-10-27T09:00:00.000Z');
+    await create(
+      'us04-grouped-http',
+      4,
+      '2026-10-27T09:00:00.000Z',
+    );
 
     const response = await api.request(
       'GET',
@@ -315,5 +421,122 @@ describe('Energy measurements HTTP API (energy-monitoring-service)', () => {
     );
 
     expect(response.status).toBe(400);
+  });
+
+  // US05 - Compare periods successfully
+
+  it('US05 compares two periods and reports the difference and trend', async () => {
+    await create(
+      'us05-http',
+      3.75,
+      '2026-10-03T10:00:00.000Z',
+    );
+
+    await create(
+      'us05-http',
+      4.25,
+      '2026-10-05T10:00:00.000Z',
+    );
+
+    await create(
+      'us05-http',
+      6,
+      '2026-10-10T10:00:00.000Z',
+    );
+
+    const query =
+      'deviceId=us05-http' +
+      '&baselineFrom=2026-10-01T00:00:00.000Z' +
+      '&baselineTo=2026-10-07T23:59:59.999Z' +
+      '&comparisonFrom=2026-10-08T00:00:00.000Z' +
+      '&comparisonTo=2026-10-14T23:59:59.999Z';
+
+    const response = await api.request(
+      'GET',
+      `/api/v1/measurements/compare-periods?${query}`,
+    );
+
+    expect(response.status).toBe(200);
+
+    expect(response.body).toMatchObject({
+      deviceId: 'us05-http',
+      hasSufficientData: true,
+      baseline: {
+        totalMeasurements: 2,
+        totalConsumptionKwh: 8,
+      },
+      comparison: {
+        totalMeasurements: 1,
+        totalConsumptionKwh: 6,
+      },
+      differenceKwh: -2,
+      percentageChange: -25,
+      trend: 'decrease',
+    });
+  });
+
+  // US05 - Insufficient data
+
+  it('US05 reports insufficient data without converting absence into zero', async () => {
+    await create(
+      'us05-missing',
+      5,
+      '2026-10-10T10:00:00.000Z',
+    );
+
+    const response = await api.request(
+      'GET',
+      '/api/v1/measurements/compare-periods?' +
+        'deviceId=us05-missing' +
+        '&baselineFrom=2026-10-01T00:00:00.000Z' +
+        '&baselineTo=2026-10-07T23:59:59.999Z' +
+        '&comparisonFrom=2026-10-08T00:00:00.000Z' +
+        '&comparisonTo=2026-10-14T23:59:59.999Z',
+    );
+
+    expect(response.status).toBe(200);
+
+    expect(response.body).toMatchObject({
+      hasSufficientData: false,
+      trend: 'insufficient_data',
+      baseline: {
+        hasData: false,
+        totalConsumptionKwh: null,
+      },
+      comparison: {
+        hasData: true,
+        totalConsumptionKwh: 5,
+      },
+      differenceKwh: null,
+      percentageChange: null,
+    });
+  });
+
+  // US05 - Invalid dates and overlapping intervals
+
+  it('US05 returns 400 when periods overlap or dates are invalid', async () => {
+    const endpoint =
+      '/api/v1/measurements/compare-periods?deviceId=us05-http';
+
+    const invalid = await api.request(
+      'GET',
+      endpoint +
+        '&baselineFrom=2026-10-01T00:00:00.000Z' +
+        '&baselineTo=2026-10-10T00:00:00.000Z' +
+        '&comparisonFrom=2026-10-08T00:00:00.000Z' +
+        '&comparisonTo=2026-10-14T00:00:00.000Z',
+    );
+
+    const badDate = await api.request(
+      'GET',
+      endpoint +
+        '&baselineFrom=invalid-date' +
+        '&baselineTo=2026-10-07T00:00:00.000Z' +
+        '&comparisonFrom=2026-10-08T00:00:00.000Z' +
+        '&comparisonTo=2026-10-14T00:00:00.000Z',
+    );
+
+    expect(invalid.status).toBe(400);
+    expect(badDate.status).toBe(400);
   });
 });
