@@ -150,6 +150,43 @@ describe('Alert rules & alerts HTTP API (alert-service)', () => {
     expect(one.body).toEqual(alert);
   });
 
+  it('US07 does not raise or store an alert at exactly the threshold', async () => {
+    const before = await api.request('GET', '/api/v1/alerts');
+
+    const res = await api.request('POST', '/api/v1/alerts/evaluate', {
+      body: { deviceId: 'device-001', consumptionKwh: 5 },
+    });
+    const after = await api.request('GET', '/api/v1/alerts');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ evaluatedRules: 1, alerts: [] });
+    expect(after.body).toEqual(before.body);
+  });
+
+  it('US07 POST /alerts/evaluate returns 400 for invalid readings', async () => {
+    const before = await api.request('GET', '/api/v1/alerts');
+
+    const invalidBodies = [
+      {},
+      { consumptionKwh: 8.2 },
+      { deviceId: '', consumptionKwh: 8.2 },
+      { deviceId: 'device-001' },
+      { deviceId: 'device-001', consumptionKwh: -1 },
+      { deviceId: 'device-001', consumptionKwh: '8.2' },
+      { deviceId: 'device-001', consumptionKwh: 8.2, measuredAt: 'x' },
+    ];
+
+    for (const body of invalidBodies) {
+      const res = await api.request('POST', '/api/v1/alerts/evaluate', {
+        body,
+      });
+      expect(res.status).toBe(400);
+    }
+
+    const after = await api.request('GET', '/api/v1/alerts');
+    expect(after.body).toEqual(before.body);
+  });
+
   it('GET /alerts/:id returns 404 / 400 for unknown / invalid ids', async () => {
     const missing = await api.request(
       'GET',

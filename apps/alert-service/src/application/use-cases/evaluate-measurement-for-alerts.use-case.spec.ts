@@ -64,6 +64,23 @@ describe('EvaluateMeasurementForAlertsUseCase', () => {
     expect(alerts.save).not.toHaveBeenCalled();
   });
 
+  it('US07 evaluates only the rules returned as active', async () => {
+    await useCase.execute({ deviceId: 'device-001', consumptionKwh: 50 });
+
+    expect(rules.findActive).toHaveBeenCalledTimes(1);
+    expect(rules.findAll).not.toHaveBeenCalled();
+  });
+
+  it('US07 persists nothing when consumption equals the threshold', async () => {
+    const result = await useCase.execute({
+      deviceId: 'device-001',
+      consumptionKwh: 5,
+    });
+
+    expect(result.alerts).toEqual([]);
+    expect(alerts.save).not.toHaveBeenCalled();
+  });
+
   it('delegates the decision to the injected strategy', async () => {
     const strategy = { evaluate: jest.fn().mockReturnValue('custom') };
     useCase = new EvaluateMeasurementForAlertsUseCase(rules, alerts, strategy);
