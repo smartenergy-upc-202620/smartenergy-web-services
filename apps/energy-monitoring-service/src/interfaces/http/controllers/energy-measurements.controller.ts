@@ -26,6 +26,7 @@ import { CompareEnergyPeriodsUseCase } from '../../../application/use-cases/comp
 import { GetEnergyConsumptionSummaryUseCase } from '../../../application/use-cases/get-energy-consumption-summary.use-case';
 import { GetEnergyMeasurementByIdUseCase } from '../../../application/use-cases/get-energy-measurement-by-id.use-case';
 import { GetEstimatedEnergyCostUseCase } from '../../../application/use-cases/get-estimated-energy-cost.use-case';
+import { GetEnergyReportUseCase } from '../../../application/use-cases/get-energy-report.use-case';
 import { GetGroupedEnergyHistoryUseCase } from '../../../application/use-cases/get-grouped-energy-history.use-case';
 import { ListEnergyMeasurementsUseCase } from '../../../application/use-cases/list-energy-measurements.use-case';
 
@@ -44,6 +45,11 @@ import {
   EnergyConsumptionSummaryResponseDto,
   EnergyMeasurementResponseDto,
 } from '../dto/energy-measurement-response.dto';
+
+import {
+  EnergyReportQueryDto,
+  EnergyReportResponseDto,
+} from '../dto/energy-report.dto';
 
 import {
   EstimatedEnergyCostQueryDto,
@@ -66,6 +72,7 @@ export class EnergyMeasurementsController {
     private readonly getEstimatedCost: GetEstimatedEnergyCostUseCase,
     private readonly getGroupedHistory: GetGroupedEnergyHistoryUseCase,
     private readonly comparePeriodsUseCase: CompareEnergyPeriodsUseCase,
+    private readonly getReport: GetEnergyReportUseCase,
   ) {}
 
   // Sprint 1 - Register an energy measurement
@@ -207,6 +214,32 @@ export class EnergyMeasurementsController {
       comparisonFrom: new Date(query.comparisonFrom),
       comparisonTo: new Date(query.comparisonTo),
     });
+  }
+
+  // US06 - Weekly / monthly energy report (declared before :id)
+
+  @Get('report')
+  @ApiOperation({
+    summary: 'Get a weekly or monthly energy consumption report (US06)',
+    description:
+      'Report for the UTC week (Monday-Sunday) or calendar month containing ' +
+      'referenceDate. Optional deviceId filter. When there are no measurements ' +
+      'hasData is false and averageConsumptionKwh is null.',
+  })
+  @ApiOkResponse({
+    type: EnergyReportResponseDto,
+  })
+  @ApiBadRequestResponse({
+    type: ErrorResponseDto,
+  })
+  report(
+    @Query() query: EnergyReportQueryDto,
+  ): Promise<EnergyReportResponseDto> {
+    return this.getReport.execute(
+      query.period,
+      new Date(query.referenceDate),
+      query.deviceId,
+    );
   }
 
   // Sprint 1 - Find measurement by UUID

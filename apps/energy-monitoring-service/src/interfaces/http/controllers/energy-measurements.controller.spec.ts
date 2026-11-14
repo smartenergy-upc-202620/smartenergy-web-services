@@ -10,6 +10,7 @@ import { GetEnergyMeasurementByIdUseCase } from '../../../application/use-cases/
 import { ListEnergyMeasurementsUseCase } from '../../../application/use-cases/list-energy-measurements.use-case';
 import { GetEstimatedEnergyCostUseCase } from '../../../application/use-cases/get-estimated-energy-cost.use-case';
 import { GetGroupedEnergyHistoryUseCase } from '../../../application/use-cases/get-grouped-energy-history.use-case';
+import { GetEnergyReportUseCase } from '../../../application/use-cases/get-energy-report.use-case';
 
 import { EnergyMeasurement } from '../../../domain/entities/energy-measurement.entity';
 
@@ -75,6 +76,7 @@ describe('Energy measurements HTTP API (energy-monitoring-service)', () => {
           GetEnergyConsumptionSummaryUseCase,
           GetGroupedEnergyHistoryUseCase,
           CompareEnergyPeriodsUseCase,
+          GetEnergyReportUseCase,
           {
             provide: ENERGY_MEASUREMENT_REPOSITORY,
             useValue: new InMemoryEnergyMeasurementRepository(),
@@ -538,5 +540,98 @@ describe('Energy measurements HTTP API (energy-monitoring-service)', () => {
 
     expect(invalid.status).toBe(400);
     expect(badDate.status).toBe(400);
+  });
+
+  // US06 - Energy reports
+
+  it('US06 GET /measurements/report returns the weekly report (not captured by /:id)', async () => {
+    await create('us06-http', 4, '2026-11-09T10:00:00.000Z');
+    await create('us06-http', 5.5, '2026-11-12T10:00:00.000Z');
+    await create('us06-http', 9, '2026-11-16T00:00:00.000Z'); // next week
+    await create('us06-other', 50, '2026-11-10T10:00:00.000Z');
+
+    const response = await api.request(
+      'GET',
+      '/api/v1/measurements/report?period=week' +
+        '&referenceDate=2026-11-10T00:00:00.000Z' +
+        '&deviceId=us06-http',
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      period: 'week',
+      from: '2026-11-09T00:00:00.000Z',
+      to: '2026-11-15T23:59:59.999Z',
+      deviceId: 'us06-http',
+      totalMeasurements: 2,
+      totalConsumptionKwh: 9.5,
+      averageConsumptionKwh: 4.75,
+      hasData: true,
+    });
+  });
+
+  it('US06 returns the monthly report across all devices when deviceId is omitted', async () => {
+    const response = await api.request(
+      'GET',
+      '/api/v1/measurements/report?period=month' +
+        '&referenceDate=2026-11-20T00:00:00.000Z',
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      period: 'month',
+      from: '2026-11-01T00:00:00.000Z',
+      to: '2026-11-30T23:59:59.999Z',
+      totalMeasurements: 4,
+      totalConsumptionKwh: 68.5,
+      hasData: true,
+    });
+    expect(response.body).not.toHaveProperty('deviceId');
+  });
+
+  it('US06 reports no data for a period without measurements', async () => {
+    const response = await api.request(
+      'GET',
+      '/api/v1/measurements/report?period=week' +
+        '&referenceDate=2025-01-15T00:00:00.000Z' +
+        '&deviceId=us06-http',
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      period: 'week',
+      from: '2025-01-13T00:00:00.000Z',
+      to: '2025-01-19T23:59:59.999Z',
+      deviceId: 'us06-http',
+      totalMeasurements: 0,
+      totalConsumptionKwh: 0,
+      averageConsumptionKwh: null,
+      hasData: false,
+      message: 'Not enough data to generate the report.',
+    });
+  });
+
+  it('US06 returns 400 for an invalid period or referenceDate', async () => {
+    const badPeriod = await api.request(
+      'GET',
+      '/api/v1/measurements/report?period=year&referenceDate=2026-11-10T00:00:00.000Z',
+    );
+    const missingPeriod = await api.request(
+      'GET',
+      '/api/v1/measurements/report?referenceDate=2026-11-10T00:00:00.000Z',
+    );
+    const badDate = await api.request(
+      'GET',
+      '/api/v1/measurements/report?period=week&referenceDate=invalid-date',
+    );
+    const missingDate = await api.request(
+      'GET',
+      '/api/v1/measurements/report?period=week',
+    );
+
+    expect(badPeriod.status).toBe(400);
+    expect(missingPeriod.status).toBe(400);
+    expect(badDate.status).toBe(400);
+    expect(missingDate.status).toBe(400);
   });
 });

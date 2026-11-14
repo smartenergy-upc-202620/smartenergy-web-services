@@ -10,6 +10,8 @@ import {
 import { CreateEnergyMeasurementUseCase } from './application/use-cases/create-energy-measurement.use-case';
 import { CompareEnergyPeriodsUseCase } from './application/use-cases/compare-energy-periods.use-case';
 
+import { GetEnergyReportUseCase } from './application/use-cases/get-energy-report.use-case';
+
 import { GetEnergyConsumptionSummaryUseCase } from './application/use-cases/get-energy-consumption-summary.use-case';
 
 import { GetEnergyMeasurementByIdUseCase } from './application/use-cases/get-energy-measurement-by-id.use-case';
@@ -64,6 +66,9 @@ import { EnergyMeasurementsController } from './interfaces/http/controllers/ener
 
     // US05 - Period consumption comparison
     CompareEnergyPeriodsUseCase,
+
+    // US06 - Energy reports
+    GetEnergyReportUseCase,
 
     {
       provide: ENERGY_MEASUREMENT_REPOSITORY,

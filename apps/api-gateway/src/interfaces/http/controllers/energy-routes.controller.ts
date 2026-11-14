@@ -22,6 +22,7 @@ import {
   CreateMeasurementRequestDoc,
   EstimatedEnergyCostDoc,
   EnergyPeriodComparisonDoc,
+  EnergyReportDoc,
   GroupedEnergyHistoryDoc,
   MeasurementDoc,
 } from '../dto/gateway-docs.dto';
@@ -248,6 +249,44 @@ export class EnergyRoutesController {
     type: ErrorResponseDto,
   })
   comparePeriods(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    return this.proxy.forward('energy-monitoring-service', req, res);
+  }
+
+  // US06 - Weekly / monthly energy report
+
+  @Get('report')
+  @ApiOperation({
+    summary: 'Get a weekly or monthly energy consumption report (US06)',
+    description:
+      'Report for the UTC week (Monday-Sunday) or calendar month containing ' +
+      'referenceDate. The Energy Monitoring Service validates and computes it.',
+  })
+  @ApiQuery({
+    name: 'period',
+    required: true,
+    enum: ['week', 'month'],
+    example: 'week',
+  })
+  @ApiQuery({
+    name: 'referenceDate',
+    required: true,
+    type: String,
+    format: 'date-time',
+    example: '2026-11-10T00:00:00.000Z',
+    description: 'UTC date that determines the requested week or month.',
+  })
+  @ApiQuery(DEVICE_FILTER)
+  @ApiOkResponse({
+    type: EnergyReportDoc,
+  })
+  @ApiBadRequestResponse({
+    type: ErrorResponseDto,
+    description: 'Invalid period or referenceDate.',
+  })
+  report(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {

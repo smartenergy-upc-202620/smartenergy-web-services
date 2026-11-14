@@ -183,6 +183,37 @@ export class ComparisonPeriodDoc {
   hasData: boolean;
 }
 
+// US06 - Weekly / monthly energy report
+
+export class EnergyReportDoc {
+  @ApiProperty({ enum: ['week', 'month'], example: 'week' })
+  period: 'week' | 'month';
+
+  @ApiProperty({ example: '2026-11-09T00:00:00.000Z' })
+  from: string;
+
+  @ApiProperty({ example: '2026-11-15T23:59:59.999Z' })
+  to: string;
+
+  @ApiPropertyOptional({ example: 'device-001' })
+  deviceId?: string;
+
+  @ApiProperty({ example: 4 })
+  totalMeasurements: number;
+
+  @ApiProperty({ example: 18.5 })
+  totalConsumptionKwh: number;
+
+  @ApiProperty({ type: Number, nullable: true, example: 4.625 })
+  averageConsumptionKwh: number | null;
+
+  @ApiProperty({ example: true })
+  hasData: boolean;
+
+  @ApiPropertyOptional({ example: 'Not enough data to generate the report.' })
+  message?: string;
+}
+
 export class EnergyPeriodComparisonDoc {
   @ApiProperty({ example: 'device-001' })
   deviceId: string;
