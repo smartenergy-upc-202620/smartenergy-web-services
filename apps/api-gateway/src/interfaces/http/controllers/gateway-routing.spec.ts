@@ -302,4 +302,23 @@ describe('API Gateway routing (Facade)', () => {
       url: path,
     });
   });
+
+  // US06 - Energy report
+
+  it('US06 forwards report parameters to Energy Monitoring', async () => {
+    const path =
+      '/api/v1/measurements/report?period=week' +
+      '&referenceDate=2026-11-10T00:00:00.000Z' +
+      '&deviceId=device-001';
+
+    const response = await gateway.request('GET', path);
+
+    expect(response.status).toBe(200);
+
+    expect(response.body).toMatchObject({
+      service: 'energy-monitoring-service',
+      method: 'GET',
+      url: path,
+    });
+  });
 });
